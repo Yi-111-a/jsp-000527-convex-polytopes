@@ -25,16 +25,17 @@ def IsEdgeOf (P : Finset (Euc 3)) (u v : Euc 3) : Prop :=
 
 /-- `e(P)`: the number of edges of `conv P`, computed as half the ordered-edge
 count on the vertex set `P`. -/
-def edgeCount (P : Finset (Euc 3)) : ℕ :=
-  ((P ×ˢ P).filter fun p ↦ IsEdgeOf P p.1 p.2).card / 2
+def edgeCount (P : Finset (Euc 3)) : ℕ := by
+  classical
+  exact ((P ×ˢ P).filter fun p ↦ IsEdgeOf P p.1 p.2).card / 2
 
 /-- **Proposition 2.1.** -/
 theorem prop_2_1 (P : Finset (Euc 3))
-    {X : Finset (Euc 3)} (hXfree : FreeOf X (convexHull ℝ (P : Set _)))
-    (hX : InGeneralPosition (X : Set _))
+    {X : Finset (Euc 3)} (hXfree : FreeOf X (convexHull ℝ (P : Set (Euc 3))))
+    (hX : InGeneralPosition (X : Set (Euc 3)))
     {a b : ℕ} (ha : 1 ≤ a) (hb : 1 ≤ b)
     (hcard : (a + b - 4).choose (a - 2) ^ (edgeCount P) < X.card) :
-    (∃ Y ⊆ X, Y.card = a ∧ CapOf Y (convexHull ℝ (P : Set _))) ∨
+    (∃ Y ⊆ X, Y.card = a ∧ CapOf Y (convexHull ℝ (P : Set (Euc 3)))) ∨
     (∃ S ⊆ X, S.card = b ∧ InConvexPosition S) := by
   sorry
 

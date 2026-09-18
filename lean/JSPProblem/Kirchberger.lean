@@ -18,7 +18,7 @@ noncomputable section
 variable {d : ℕ}
 
 /-- Lift `x : ℝ^d` to `(x, 1) : ℝ^{d+1}`. -/
-def liftUp (x : Euc d) : Euc (d + 1) := Fin.snoc x 1
+def liftUp (x : Euc d) : Euc (d + 1) := WithLp.toLp 2 (Fin.snoc (WithLp.ofLp x) 1)
 
 /-- Lift `x : ℝ^d` to `(−x, −1) : ℝ^{d+1}`. -/
 def liftDown (x : Euc d) : Euc (d + 1) := -liftUp x
@@ -27,9 +27,9 @@ def liftDown (x : Euc d) : Euc (d + 1) := -liftUp x
 theorem kirchberger {A B : Set (Euc d)}
     (h : (convexHull ℝ A ∩ convexHull ℝ B).Nonempty) :
     ∃ A' B' : Finset (Euc d),
-      (A' : Set _) ⊆ A ∧ (B' : Set _) ⊆ B ∧
+      (A' : Set (Euc d)) ⊆ A ∧ (B' : Set (Euc d)) ⊆ B ∧
       A'.card + B'.card ≤ d + 2 ∧
-      (convexHull ℝ (A' : Set _) ∩ convexHull ℝ (B' : Set _)).Nonempty := by
+      (convexHull ℝ (A' : Set (Euc d)) ∩ convexHull ℝ (B' : Set (Euc d))).Nonempty := by
   sorry
 
 end

@@ -33,7 +33,7 @@ def IsCap (P : Finset (Euc 2)) : Prop :=
 `ℝ²` in general position with distinct `x`-coordinates contains an `a`-cup or a
 `b`-cap.  Paper item: Theorem 2.1 (Erdős–Szekeres 1935). -/
 theorem cupsCaps {a b : ℕ} (ha : 2 ≤ a) (hb : 2 ≤ b)
-    {X : Finset (Euc 2)} (hX : InGeneralPosition (X : Set _)) (hdx : DistinctX X)
+    {X : Finset (Euc 2)} (hX : InGeneralPosition (X : Set (Euc 2))) (hdx : DistinctX X)
     (hcard : (a + b - 4).choose (a - 2) + 1 ≤ X.card) :
     ∃ S ⊆ X, (S.card = a ∧ IsCup S) ∨ (S.card = b ∧ IsCap S) := by
   sorry

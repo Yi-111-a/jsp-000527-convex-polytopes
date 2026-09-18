@@ -31,7 +31,7 @@ open Filter
 `n` points in convex position. -/
 theorem es_three_subexponential (ε : ℝ) (hε : 0 < ε) :
     ∃ n₀ : ℕ, ∀ n ≥ n₀, ∀ X : Finset (Euc 3),
-      InGeneralPosition (X : Set _) →
+      InGeneralPosition (X : Set (Euc 3)) →
       (2:ℝ) ^ (ε * (n:ℝ)) ≤ (X.card : ℝ) →
       ∃ S ⊆ X, S.card = n ∧ InConvexPosition S := by
   sorry
@@ -54,7 +54,7 @@ general-position set `X ⊆ ℝ^d` with `|X| ≥ 2^{εn}` contains an `n`-elemen
 subset in convex position. -/
 theorem convexSubset_forcing_points_exp {d : ℕ} (hd : 3 ≤ d) (ε : ℝ) (hε : 0 < ε) :
     ∃ n₀ : ℕ, ∀ n ≥ n₀, ∀ X : Finset (Euc d),
-      InGeneralPosition (X : Set _) →
+      InGeneralPosition (X : Set (Euc d)) →
       (2:ℝ) ^ (ε * (n:ℝ)) ≤ (X.card : ℝ) →
       ∃ S ⊆ X, S.card = n ∧ InConvexPosition S := by
   obtain ⟨n₀, hn₀⟩ := es_three_subexponential ε hε
@@ -85,7 +85,7 @@ theorem convexSubset_forcing_points_exp {d : ℕ} (hd : 3 ≤ d) (ε : ℝ) (hε
     | base => exact hfc3
     | succ k' hk3' ih =>
         exact forcesConvex_succ (d := k') (N := N) (n := n)
-          (le_trans (by omega : k' + 2 ≤ d + 1) (by omega : d + 1 ≤ N)) ih
+          (by omega) (by omega) (ih (Nat.le_of_succ_le hkd))
   exact iter d le_rfl hd X hX hNcard
 
 end

@@ -44,14 +44,14 @@ def InConvexPosition (S : Finset (Euc d)) : Prop :=
 `|X| ≥ N` contains an `n`-element subset in convex position.  The Erdős–Szekeres
 number `ES_d(n)` is the least `N` for which this holds. -/
 def ForcesConvex (d N n : ℕ) : Prop :=
-  ∀ X : Finset (Euc d), InGeneralPosition (X : Set _) → N ≤ X.card →
+  ∀ X : Finset (Euc d), InGeneralPosition (X : Set (Euc d)) → N ≤ X.card →
     ∃ S : Finset (Euc d), S ⊆ X ∧ S.card = n ∧ InConvexPosition S
 
 /-- The coordinate projection `ℝ³ → ℝ²` dropping the last coordinate. -/
 def proj2 : Euc 3 →ₗ[ℝ] Euc 2 where
-  toFun x := fun i ↦ x i.castSucc
-  map_add' x y := by ext i; simp [Pi.add_apply]
-  map_smul' c x := by ext i; simp [Pi.smul_apply]
+  toFun x := WithLp.toLp 2 fun i : Fin 2 ↦ x i.castSucc
+  map_add' x y := by ext i; simp [PiLp.add_apply]
+  map_smul' c x := by ext i; simp [PiLp.smul_apply, smul_eq_mul]
 
 /-- Segment `ab` lies *above* segment `cd` (paper §2, "above and below in
 space"): their projections to `ℝ²` meet at a point over which `ab` has the
@@ -82,15 +82,15 @@ def CapOf (Y : Finset (Euc 3)) (C : Set (Euc 3)) : Prop :=
 for every `i`, `conv (X i)` and `conv (⋃ j ≠ i, X j)` are disjoint. -/
 def CollectionConvex {k : ℕ} (X : Fin k → Finset (Euc d)) : Prop :=
   ∀ i : Fin k,
-    Disjoint (convexHull ℝ (X i : Set _))
-      (convexHull ℝ (⋃ j : Fin k, ⋃ _ : j ≠ i, (X j : Set _)))
+    Disjoint (convexHull ℝ (X i : Set (Euc d)))
+      (convexHull ℝ (⋃ j : Fin k, ⋃ _ : j ≠ i, (X j : Set (Euc d))))
 
 /-- A collection `X₁,…,X_k ⊆ ℝ^d` is *2-separated* (paper §2): for pairwise
 disjoint index pairs `{i,j} ∩ {i',j'} = ∅`,
 `conv (Xᵢ ∪ Xⱼ) ∩ conv (Xᵢ' ∪ Xⱼ') = ∅`. -/
 def TwoSeparated {k : ℕ} (X : Fin k → Finset (Euc d)) : Prop :=
   ∀ i j i' j' : Fin k, i ≠ i' → i ≠ j' → j ≠ i' → j ≠ j' →
-    Disjoint (convexHull ℝ ((X i ∪ X j : Finset _) : Set _))
-      (convexHull ℝ ((X i' ∪ X j' : Finset _) : Set _))
+    Disjoint (convexHull ℝ ((X i ∪ X j : Finset (Euc d)) : Set (Euc d)))
+      (convexHull ℝ ((X i' ∪ X j' : Finset (Euc d)) : Set (Euc d)))
 
 end

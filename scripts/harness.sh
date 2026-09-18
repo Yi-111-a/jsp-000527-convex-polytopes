@@ -25,13 +25,13 @@ echo "exit code: $BUILD_RC" >> "$LOG"
 echo "" >> "$LOG"
 
 # --- 2. sorry / admit count ------------------------------------------------
-SORRY_COUNT=$(grep -rEn '\bsorry\b|\badmit\b|sorryAx|admitOr' lean/JSPProblem lean/JSPProblem.lean 2>/dev/null \
-  | grep -v '^\s*--' | grep -vE '/--|`-' | wc -l | tr -d ' ')
-# finer: count actual tactic occurrences on non-comment lines
+# count actual tactic occurrences on non-comment lines (explicit char-class
+# boundaries; `\b` is not portable across awk implementations)
 SORRY_COUNT=$(awk '
   /\/\*/ {inblock=1} /\*\// {inblock=0; next} inblock {next}
   { line=$0; sub(/--.*/,"",line);
-    n=gsub(/\bsorry\b/,"&",line); m=gsub(/\badmit\b/,"&",line); c+=n+m }
+    n=gsub(/(^|[^A-Za-z0-9_])sorry([^A-Za-z0-9_]|$)/,"&",line);
+    m=gsub(/(^|[^A-Za-z0-9_])admit([^A-Za-z0-9_]|$)/,"&",line); c+=n+m }
   END {print c+0}' lean/JSPProblem/*.lean lean/JSPProblem.lean)
 
 echo "## sorry / admit occurrences" >> "$LOG"
@@ -44,7 +44,8 @@ for f in lean/JSPProblem/*.lean lean/JSPProblem.lean; do
   c=$(awk '
     /\/\*/ {inblock=1} /\*\// {inblock=0; next} inblock {next}
     { line=$0; sub(/--.*/,"",line);
-      n=gsub(/\bsorry\b/,"&",line); m=gsub(/\badmit\b/,"&",line); c+=n+m }
+      n=gsub(/(^|[^A-Za-z0-9_])sorry([^A-Za-z0-9_]|$)/,"&",line);
+      m=gsub(/(^|[^A-Za-z0-9_])admit([^A-Za-z0-9_]|$)/,"&",line); c+=n+m }
     END {print c+0}' "$f")
   [ "$c" -gt 0 ] && echo "| $f | $c |" >> "$LOG"
 done

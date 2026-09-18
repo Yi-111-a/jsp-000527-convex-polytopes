@@ -22,9 +22,10 @@ in convex position. -/
 theorem inConvexPosition_mono {S T : Finset (Euc d)} (hTS : T ⊆ S)
     (h : InConvexPosition S) : InConvexPosition T := by
   intro x hx
-  have hsub : ((T.erase x : Finset _) : Set _) ⊆ ((S.erase x : Finset _) : Set _) := by
+  have hsub : ((T.erase x : Finset (Euc d)) : Set (Euc d)) ⊆
+      ((S.erase x : Finset (Euc d)) : Set (Euc d)) := by
     intro y hy
-    simp only [Finset.coe_erase, Set.mem_diff, Set.mem_singleton_iff,
+    simp only [Finset.coe_erase, Set.mem_sdiff, Set.mem_singleton_iff,
       Finset.mem_coe] at hy ⊢
     exact ⟨hTS hy.1, hy.2⟩
   exact fun hc ↦ h x (hTS hx) (convexHull_mono hsub hc)
@@ -35,36 +36,33 @@ theorem inConvexPosition_of_affineIndependent {s : Finset (Euc d)}
     (h : AffineIndependent ℝ (fun x : s ↦ (x : Euc d))) : InConvexPosition s := by
   intro x hx
   have hnot : (x : Euc d) ∉
-      affineSpan ℝ (((fun y : s ↦ (y : Euc d)) '' {y | y ≠ ⟨x, hx⟩}) ) := by
-    refine h.not_mem_affineSpan_diff ⟨x, hx⟩ {y | y ≠ ⟨x, hx⟩} ?_
-    simp
-  have himg : ((fun y : s ↦ (y : Euc d)) '' {y | y ≠ ⟨x, hx⟩}) =
+      affineSpan ℝ ((fun y : s ↦ (y : Euc d)) '' (Set.univ \ {⟨x, hx⟩})) :=
+    h.notMem_affineSpan_sdiff ⟨x, hx⟩ Set.univ
+  have himg : ((fun y : s ↦ (y : Euc d)) '' (Set.univ \ {⟨x, hx⟩})) =
       ((s.erase x : Finset _) : Set _) := by
     ext z
+    simp only [Set.mem_image, Set.mem_sdiff, Set.mem_univ, Set.mem_singleton_iff,
+      true_and, Finset.coe_erase, Finset.mem_coe]
     constructor
     · rintro ⟨y, hy, rfl⟩
-      simp only [Finset.coe_erase, Set.mem_diff, Finset.mem_coe,
-        Set.mem_singleton_iff]
       exact ⟨y.2, fun hzx ↦ hy (Subtype.ext hzx)⟩
     · intro hz
-      simp only [Finset.coe_erase, Set.mem_diff, Finset.mem_coe,
-        Set.mem_singleton_iff] at hz
-      exact ⟨⟨z, hz.1⟩, hz.2, rfl⟩
+      exact ⟨⟨z, hz.1⟩, fun h ↦ hz.2 (congrArg Subtype.val h), rfl⟩
   rw [himg] at hnot
-  exact fun hc ↦ hnot (convexHull_subset_affineSpan _ _ hc)
+  exact fun hc ↦ hnot (convexHull_subset_affineSpan _ hc)
 
 /-- A general-position set `X` with `|X| ≥ d+1` has every `≤ d+1`-element
 subset affinely independent (extend the subset to `d+1` points and restrict). -/
 theorem affineIndependent_of_inGeneralPosition {X : Finset (Euc d)}
-    (hX : InGeneralPosition (X : Set _)) (hXcard : d + 1 ≤ X.card)
+    (hX : InGeneralPosition (X : Set (Euc d))) (hXcard : d + 1 ≤ X.card)
     {s : Finset (Euc d)} (hs : s ⊆ X) (hsc : s.card ≤ d + 1) :
     AffineIndependent ℝ (fun x : s ↦ (x : Euc d)) := by
   classical
-  have hXdiff : (X \ s).card = X.card - s.card := Finset.card_sdiff hs
+  have hXdiff : (X \ s).card = X.card - s.card := Finset.card_sdiff_of_subset hs
   obtain ⟨U, hUsub, hUcard⟩ :=
     Finset.exists_subset_card_eq (n := d + 1 - s.card) (by
       rw [hXdiff]; omega)
-  have hsU : s ∪ U ⊆ X := Finset.union_subset hs (Finset.subset_trans hUsub Finset.sdiff_subset)
+  have hsU : s ∪ U ⊆ X := Finset.union_subset hs (hUsub.trans Finset.sdiff_subset)
   have hcard : (s ∪ U).card = d + 1 := by
     rw [Finset.card_union_of_disjoint (by
       rw [Finset.disjoint_left]; intro u hu hUs
@@ -74,10 +72,7 @@ theorem affineIndependent_of_inGeneralPosition {X : Finset (Euc d)}
   have hincl : (s : Set (Euc d)) ⊆ ((s ∪ U : Finset _) : Set _) := by
     intro y hy; exact Finset.mem_union_left U hy
   -- restrict the independent family on `s ∪ U` to `s`
-  have := hT.mono hincl
-  convert this using 1
-  ext ⟨y, hy⟩
-  rfl
+  exact hT.mono hincl
 
 /-- `ForcesConvex` is antitone in `N`: more points only help. -/
 theorem forcesConvex_anti {N M n : ℕ} (h : ForcesConvex d N n) (hNM : N ≤ M) :

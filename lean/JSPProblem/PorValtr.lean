@@ -42,7 +42,7 @@ first coordinate; `σ = true` gives a cap, `σ = false` a cup; the regions `T i`
 are the support regions of the consecutive edges, with indices wrapped modulo
 `k+1` at the two ends. -/
 theorem porValtr_positiveFraction {k : ℕ} (hk : 3 ≤ k)
-    {X : Finset (Euc 2)} (hX : InGeneralPosition (X : Set _)) (hdx : DistinctX X)
+    {X : Finset (Euc 2)} (hX : InGeneralPosition (X : Set (Euc 2))) (hdx : DistinctX X)
     (hcard : 2 ^ (40 * k) ≤ X.card) :
     ∃ x : Fin (k + 1) → Euc 2, ∃ σ : Bool, ∃ T : Fin k → Set (Euc 2),
       (∀ i, x i ∈ X) ∧
@@ -55,8 +55,8 @@ theorem porValtr_positiveFraction {k : ℕ} (hk : 3 ≤ k)
           (x ⟨i.val, by omega⟩)
           (x ⟨i.val + 1, by omega⟩)
           (x ⟨(i.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩) σ) ∧
-      (∀ i : Fin k, 2 ^ (40 * k) * (X.filter (· ∈ T i)).card ≥ X.card) ∧
-      (∀ Y : Fin k → Euc 2, (∀ i, Y i ∈ T i ∩ (X : Set _)) →
+      (∀ i : Fin k, 2 ^ (40 * k) * (T i ∩ (X : Set (Euc 2))).ncard ≥ X.card) ∧
+      (∀ Y : Fin k → Euc 2, (∀ i, Y i ∈ T i ∩ (X : Set (Euc 2))) →
         InConvexPosition (Finset.image Y Finset.univ)) := by
   sorry
 

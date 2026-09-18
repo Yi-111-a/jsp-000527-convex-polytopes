@@ -32,7 +32,7 @@ below. -/
 theorem aboveBelow_ramsey {k : ℕ} (hk : 4 ≤ k) :
     ∃ AB : ℕ, ∀ N : ℕ, AB ≤ N → ∀ x : Fin N → Euc 3,
       Function.Injective x →
-      InGeneralPosition ((Finset.image x Finset.univ : Finset _) : Set _) →
+      InGeneralPosition ((Finset.image x Finset.univ : Finset (Euc 3)) : Set (Euc 3)) →
       Function.Injective (proj2 ∘ x) →
       InConvexPosition (Finset.image (proj2 ∘ x) Finset.univ) →
       ∃ S : Finset (Fin N), S.card = k ∧
@@ -48,11 +48,11 @@ above every segment `x₂x₄` (`x₂ ∈ X₂, x₄ ∈ X₄`), then
 theorem prop_2_3 {X1 X2 X3 X4 : Finset (Euc 3)}
     (hd : Disjoint X1 X2) (hd' : Disjoint X1 X3) (hd'' : Disjoint X1 X4)
     (hd''' : Disjoint X2 X3) (hd'''' : Disjoint X2 X4) (hd''''' : Disjoint X3 X4)
-    (hgp : InGeneralPosition ((X1 ∪ X2 ∪ X3 ∪ X4 : Finset _) : Set _))
+    (hgp : InGeneralPosition ((X1 ∪ X2 ∪ X3 ∪ X4 : Finset (Euc 3)) : Set (Euc 3)))
     (habove : ∀ x1 ∈ X1, ∀ x2 ∈ X2, ∀ x3 ∈ X3, ∀ x4 ∈ X4,
       AboveSeg x1 x3 x2 x4) :
-    Disjoint (convexHull ℝ ((X1 ∪ X3 : Finset _) : Set _))
-             (convexHull ℝ ((X2 ∪ X4 : Finset _) : Set _)) := by
+    Disjoint (convexHull ℝ ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3)))
+             (convexHull ℝ ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) := by
   sorry
 
 /-- **Corollary 2.4.**  In the situation of Proposition 2.2 there is a
@@ -61,16 +61,16 @@ theorem prop_2_3 {X1 X2 X3 X4 : Finset (Euc 3)}
 convex hulls for every `a ≤ b ≤ c` in `Fin k`. -/
 theorem cor_2_4 {N : ℕ} {x : Fin N → Euc 3}
     (hx : Function.Injective x)
-    (hgp : InGeneralPosition ((Finset.image x Finset.univ : Finset _) : Set _))
+    (hgp : InGeneralPosition ((Finset.image x Finset.univ : Finset (Euc 3)) : Set (Euc 3)))
     (hπ : Function.Injective (proj2 ∘ x))
     (hconv : InConvexPosition (Finset.image (proj2 ∘ x) Finset.univ))
     {k : ℕ} (hk : 4 ≤ k) (hN : Classical.choose (aboveBelow_ramsey hk) ≤ N) :
     ∃ σ : Fin k ↪o Fin N, ∀ a b c : Fin k, a ≤ b → b ≤ c →
       Disjoint
         (convexHull ℝ ((Finset.image (x ∘ σ)
-          ((Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c))) : Finset _)) : Set _))
+          ((Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c))) : Finset (Fin k))) : Set (Euc 3)))
         (convexHull ℝ ((Finset.image (x ∘ σ)
-          ((Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i)) : Finset _)) : Set _)) := by
+          ((Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i)) : Finset (Fin k))) : Set (Euc 3))) := by
   sorry
 
 /-- **Proposition 2.5.**  Pairwise disjoint finite sets `X₁,…,X_k ⊆ ℝ³`, each
@@ -79,7 +79,7 @@ of size `≥ 2^{k³}`, whose union is in general position, contain subsets
 theorem prop_2_5 (X : Fin k → Finset (Euc 3))
     (hdisj : ∀ i j : Fin k, i ≠ j → Disjoint (X i) (X j))
     (hsize : ∀ i, 2 ^ (k ^ 3) ≤ (X i).card)
-    (hgp : InGeneralPosition ((Finset.univ.biUnion X : Finset _) : Set _)) :
+    (hgp : InGeneralPosition ((Finset.univ.biUnion X : Finset (Euc 3)) : Set (Euc 3))) :
     ∃ Y : Fin k → Finset (Euc 3),
       (∀ i, Y i ⊆ X i) ∧
       (∀ i, 2 ^ (k ^ 3) * (Y i).card ≥ (X i).card) ∧
