@@ -1,0 +1,5 @@
+.lake/
+*.olean
+lake-packages/
+.DS_Store
+HARNESS_LOG.md.tmp

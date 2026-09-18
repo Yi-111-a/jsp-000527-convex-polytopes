@@ -1,0 +1,24 @@
+jsp_id: JSP-000527
+catalog_url: https://github.com/TheJustinSunPrize/awards/blob/main/problems/catalog-0501-0600.md#JSP-000527
+status: in_progress
+prize_ready: false  # headline theorem has remaining sorries; see HARNESS_LOG.md
+github_owner: Yi-111-a
+lean_repository: https://github.com/Yi-111-a/jsp-000527-convex-polytopes
+branch: main
+commit_sha: ""  # set on each green harness run
+headline_theorems:
+  - convexSubset_forcing_points_exp
+  - es_three_subexponential
+roles:
+  formalization_operators:
+    - Yi-111-a
+  mathematical_solvers_literature:
+    - "Pohoata–Zakharov (PoZa22), arXiv:2208.04878"
+attribution_basis: |
+  Formalization work under GitHub account Yi-111-a. Mathematical solution
+  credits remain with Pohoata–Zakharov (2022). The catalog entry currently
+  marks this problem `Eligible to claim: No`; this repository does not by
+  itself claim the prize.
+build:
+  toolchain_file: lean/lean-toolchain
+  command: lake build
