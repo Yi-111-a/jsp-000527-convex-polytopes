@@ -1,11 +1,9 @@
 # HARNESS_LOG — JSP-000527
 
-Run: 2026-09-18 21:43:27 UTC
+Run: 2026-09-19 05:08:17 UTC
 
 ## lake build
 ```
-⚠ [8927/8935] Replayed JSPProblem.Kirchberger
-warning: JSPProblem/Kirchberger.lean:27:8: declaration uses `sorry`
 ⚠ [8928/8935] Replayed JSPProblem.HamSandwich
 warning: JSPProblem/HamSandwich.lean:26:8: declaration uses `sorry`
 ⚠ [8929/8935] Replayed JSPProblem.Separation
@@ -16,10 +14,10 @@ warning: JSPProblem/Separation.lean:79:8: declaration uses `sorry`
 warning: JSPProblem/Separation.lean:93:8: declaration uses `sorry`
 ⚠ [8930/8935] Replayed JSPProblem.CupsCaps
 warning: JSPProblem/CupsCaps.lean:35:8: declaration uses `sorry`
-⚠ [8931/8935] Replayed JSPProblem.Caps3D
-warning: JSPProblem/Caps3D.lean:33:8: declaration uses `sorry`
-⚠ [8932/8935] Replayed JSPProblem.PorValtr
+⚠ [8931/8935] Replayed JSPProblem.PorValtr
 warning: JSPProblem/PorValtr.lean:44:8: declaration uses `sorry`
+⚠ [8932/8935] Replayed JSPProblem.Caps3D
+warning: JSPProblem/Caps3D.lean:33:8: declaration uses `sorry`
 ⚠ [8933/8935] Replayed JSPProblem.MainTheorem
 warning: JSPProblem/MainTheorem.lean:32:8: declaration uses `sorry`
 Build completed successfully (8935 jobs).
@@ -29,14 +27,13 @@ exit code: 0
 
 ## sorry / admit occurrences
 
-count: 11
+count: 10
 
 | file | occurrences |
 |---|---|
 | lean/JSPProblem/Caps3D.lean | 1 |
 | lean/JSPProblem/CupsCaps.lean | 1 |
 | lean/JSPProblem/HamSandwich.lean | 1 |
-| lean/JSPProblem/Kirchberger.lean | 1 |
 | lean/JSPProblem/MainTheorem.lean | 1 |
 | lean/JSPProblem/PorValtr.lean | 1 |
 | lean/JSPProblem/Separation.lean | 5 |
@@ -49,5 +46,5 @@ count: 11
 
 ## verdict
 
-NOT GREEN (build_rc=0, sorries=11)
+NOT GREEN (build_rc=0, sorries=10)
 
