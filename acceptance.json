@@ -3,8 +3,8 @@
   "catalog_url": "https://github.com/TheJustinSunPrize/awards/blob/main/problems/catalog-0501-0600.md#JSP-000527",
   "original_question_en": "In higher-dimensional general position, is the number of points forcing a convex subset exponential in the target size?",
   "required_theorems": [
-    "convexSubset_forcing_points_exp",
-    "es_three_subexponential"
+    "es_three_subexponential",
+    "convexSubset_forcing_points_exp"
   ],
-  "notes": "Answer (PoZa22): ES_d(n) = 2^{o(n)} for all d >= 3, i.e. sub-exponential. Headline must quantify over all d >= 3 (Theorem 1.1 for d = 3 plus the Valtr projection monotonicity); d = 3 alone is not sufficient. Catalog marks this entry Eligible to claim: No."
+  "notes": "Answer (PoZa22): ES_d(n)=2^{o(n)} for all d>=3 (sub-exponential). Both the d=3 theorem and the d>=3 headline are required. Catalog Eligible to claim: No."
 }
