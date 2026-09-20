@@ -1,5 +1,7 @@
 import JSPProblem.Projection
 import JSPProblem.Separation
+import JSPProblem.SeparationRamsey
+import JSPProblem.SeparationHalving
 import JSPProblem.Caps3D
 import JSPProblem.PorValtr
 
