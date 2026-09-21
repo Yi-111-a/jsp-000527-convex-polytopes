@@ -54,16 +54,19 @@ def proj2 : Euc 3 →ₗ[ℝ] Euc 2 where
   map_smul' c x := by ext i; simp [PiLp.smul_apply, smul_eq_mul]
 
 /-- Segment `ab` lies *above* segment `cd` (paper §2, "above and below in
-space"): their projections to `ℝ²` meet at a point over which `ab` has the
-larger third coordinate. -/
+space"): their projections to `ℝ²` meet at an *interior* point of both
+segments over which `ab` has the larger third coordinate.  The crossing is
+required to be strict (`0 < s, t < 1`): this strictness is essential for
+Proposition 2.3, and it is what the alternating-index crossings produced by
+`aboveBelow_ramsey` actually satisfy. -/
 def AboveSeg (a b c d₂ : Euc 3) : Prop :=
-  ∃ s t : ℝ, 0 ≤ s ∧ s ≤ 1 ∧ 0 ≤ t ∧ t ≤ 1 ∧
+  ∃ s t : ℝ, 0 < s ∧ s < 1 ∧ 0 < t ∧ t < 1 ∧
     proj2 ((1 - s) • a + s • b) = proj2 ((1 - t) • c + t • d₂) ∧
     (((1 - s) • a + s • b) 2) > ((1 - t) • c + t • d₂) 2
 
 /-- `BelowSeg`: the same with the smaller third coordinate. -/
 def BelowSeg (a b c d₂ : Euc 3) : Prop :=
-  ∃ s t : ℝ, 0 ≤ s ∧ s ≤ 1 ∧ 0 ≤ t ∧ t ≤ 1 ∧
+  ∃ s t : ℝ, 0 < s ∧ s < 1 ∧ 0 < t ∧ t < 1 ∧
     proj2 ((1 - s) • a + s • b) = proj2 ((1 - t) • c + t • d₂) ∧
     (((1 - s) • a + s • b) 2) < ((1 - t) • c + t • d₂) 2
 
