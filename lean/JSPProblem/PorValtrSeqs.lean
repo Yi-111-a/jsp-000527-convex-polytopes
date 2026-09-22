@@ -592,7 +592,7 @@ lemma pvIdx_strictMono {k : ℕ} (e : Fin k ↪o Fin (2 * k)) {a b : ℕ}
   rcases lt_or_eq_of_le hb with hbk | hbk
   · rw [pvIdx_of_lt e (by omega : a < k), pvIdx_of_lt e hbk]
     exact e.strictMono (Fin.mk_lt_mk.mpr hab)
-  · rw [pvIdx_of_not_lt e (by omega : ¬ b < k), hbk,
+  · rw [hbk, pvIdx_of_not_lt e (by omega : ¬ k < k),
       pvIdx_of_lt e (by omega : a < k)]
     exact (e ⟨a, by omega⟩).isLt
 
@@ -663,7 +663,7 @@ lemma pv_supp_subseq {k : ℕ} {y : Fin (2 * k + 1) → Euc 2}
   · -- `ε·cross(x_{j+1}, x_r, p) < 0` : `r = x_{j+2}` (or `x_0 = y_{e 0}` at `j = k-1`)
     show pvSgn σ * pvCross (y ⟨pvIdx e (j.val + 1), pvIdx_lt e _⟩)
         (y ⟨pvIdx e ((j.val + 2) % (k + 1)), pvIdx_lt e _⟩) p < 0
-    by_cases hjk : j.val + 2 ≤ k
+    by_cases hjk : j.val + 2 < k
     · have hmod : (j.val + 2) % (k + 1) = j.val + 2 := Nat.mod_eq_of_lt (by omega)
       rw [pvIdx_eval e y (a := j.val + 1)
           (i := ⟨(e ⟨j.val + 1, by omega⟩).val,
@@ -718,8 +718,15 @@ lemma pv_supp_subseq {k : ℕ} {y : Fin (2 * k + 1) → Euc 2}
             (by rw [hmod]; exact pvIdx_of_lt e (by omega : 0 < k)),
           pvIdx_eval e y (a := j.val + 1) (i := ⟨2 * k, Nat.lt_succ_self _⟩)
             (pvIdx_of_not_lt e (by omega : ¬ j.val + 1 < k))]
-        exact pv_supp_wrap_right hmono hshape (hej j)
-          (show (e ⟨0, by omega⟩).val < (e j).val from
-            hev ⟨0, by omega⟩ j (Fin.mk_lt_mk.mpr (by omega))) hp
+        rcases Nat.eq_zero_or_pos j.val with hj0 | hj0
+        · -- `j = 0` forces `k = 1`: the third support condition is the same
+          -- wraparound chord `y_{2k} y_{e 0}` as the second, so
+          -- `pv_supp_wrap_left` applies.
+          have hje : (⟨0, by omega⟩ : Fin k) = j := Fin.ext hj0.symm
+          rw [hje]
+          exact pv_supp_wrap_left hmono hshape (hej j) hp
+        · exact pv_supp_wrap_right hmono hshape (hej j)
+            (show (e ⟨0, by omega⟩).val < (e j).val from
+              hev ⟨0, by omega⟩ j (Fin.mk_lt_mk.mpr hj0)) hp
 
 end
