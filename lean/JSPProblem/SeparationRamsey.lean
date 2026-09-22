@@ -1473,6 +1473,40 @@ private lemma disjoint_hull_proj2 {A B : Finset (Euc 3)}
     exact ⟨z, hzF, rfl⟩
   exact h (hmem hzA) (hmem hzB)
 
+/-- Assembling the convex-position hypothesis `hconv` of `prop_2_3`: if the
+four `Euc 3` blocks `Y 0,…,Y 3` are the images under `f` of index finsets
+`β 0,…,β 3`, each `β j` is contained in a complementary index set `γ i`
+whenever `j ≠ i`, and the projected hull of each `β i` is disjoint from the
+projected hull of `γ i`, then the projected collection is in convex position
+(each block's projected hull is disjoint from the hull of the union of the
+projections of the other blocks). -/
+private lemma disjoint_hconv_four {k : ℕ} {f : Fin k → Euc 3}
+    {Y : Fin 4 → Finset (Euc 3)} {β γ : Fin 4 → Finset (Fin k)}
+    (hY : ∀ j : Fin 4, Y j = (β j).image f)
+    (hsub : ∀ i j : Fin 4, j ≠ i → β j ⊆ γ i)
+    (hd : ∀ i : Fin 4, Disjoint
+      (convexHull ℝ (((β i).image (proj2 ∘ f) : Finset (Euc 2)) : Set (Euc 2)))
+      (convexHull ℝ (((γ i).image (proj2 ∘ f) : Finset (Euc 2)) : Set (Euc 2))))
+    (i : Fin 4) :
+    Disjoint
+      (convexHull ℝ (proj2 '' ((Y i : Finset (Euc 3)) : Set (Euc 3))))
+      (convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i,
+        proj2 '' ((Y j : Finset (Euc 3)) : Set (Euc 3)))) := by
+  have e : ∀ J : Finset (Fin k),
+      proj2 '' ((J.image f : Finset (Euc 3)) : Set (Euc 3)) =
+        ((J.image (proj2 ∘ f) : Finset (Euc 2)) : Set (Euc 2)) := by
+    intro J
+    rw [← Finset.coe_image, Finset.image_image]
+  rw [hY i, e]
+  refine (hd i).mono_right (convexHull_mono ?_)
+  rintro y hy
+  simp only [Set.mem_iUnion, Set.mem_image] at hy
+  obtain ⟨j, hj, z, hz, rfl⟩ := hy
+  rw [hY j, Finset.mem_coe, Finset.mem_image] at hz
+  obtain ⟨w, hw, rfl⟩ := hz
+  rw [Finset.mem_coe, Finset.mem_image]
+  exact ⟨w, hsub i j hj hw, rfl⟩
+
 
 /-- **Proposition 2.2.**  For `k ≥ 4` there is `AB(k)` such that any `N ≥ AB(k)`
 points `x₁,…,x_N` of `ℝ³` in general position, whose projections are the
@@ -1812,6 +1846,219 @@ theorem cor_2_4 {N : ℕ} {x : Fin N → Euc 3}
   · by_cases hJ2 : J₂.Nonempty
     · by_cases hJ3 : J₃.Nonempty
       · -- all blocks nonempty: `prop_2_3` applies directly
+        -- The convex-position hypothesis `hconv` of `prop_2_3`: each block is
+        -- an arc of the projected convex `k`-gon while the remaining blocks
+        -- fill the complementary arc, so `hull_arc_disjoint` applies.
+        have hJ2' := hJ2
+        have hJ3' := hJ3
+        obtain ⟨w₂, hw₂⟩ := hJ2'
+        obtain ⟨w₃, hw₃⟩ := hJ3'
+        have hablt : a < b := lt_of_le_of_lt (memJ₂ w₂ hw₂).1 (memJ₂ w₂ hw₂).2
+        have hbclt : b < c := lt_of_le_of_lt (memJ₃ w₃ hw₃).1 (memJ₃ w₃ hw₃).2
+        have habv : a.val ≤ b.val := Fin.le_iff_val_le_val.mp hab
+        have hbcv : b.val ≤ c.val := Fin.le_iff_val_le_val.mp hbc
+        set Mb : Fin k := ⟨k - 1, by have := a.isLt; omega⟩ with hMbdef
+        have hMbv : Mb.val = k - 1 := rfl
+        have hle_Mb : ∀ i : Fin k, i ≤ Mb := fun i ↦ by
+          rw [Fin.le_iff_val_le_val, hMbv]
+          have := i.isLt
+          omega
+        have hlt_Mb : ∀ i : Fin k, ¬ Mb < i := fun i ↦ not_lt_of_ge (hle_Mb i)
+        set sb : Fin k := ⟨b.val - 1, by have := b.isLt; omega⟩ with hsbdef
+        have hsbv : sb.val = b.val - 1 := rfl
+        have hle_sb : ∀ i : Fin k, i ≤ sb ↔ i < b := fun i ↦ by
+          rw [Fin.le_iff_val_le_val, Fin.lt_def, hsbv]
+          have := Fin.lt_def.mp hablt
+          omega
+        have hlt_sb : ∀ i : Fin k, sb < i ↔ b ≤ i := fun i ↦ by
+          rw [Fin.lt_def, Fin.le_iff_val_le_val, hsbv]
+          have := Fin.lt_def.mp hablt
+          omega
+        set sc : Fin k := ⟨c.val - 1, by have := c.isLt; omega⟩ with hscdef
+        have hscv : sc.val = c.val - 1 := rfl
+        have hle_sc : ∀ i : Fin k, i ≤ sc ↔ i < c := fun i ↦ by
+          rw [Fin.le_iff_val_le_val, Fin.lt_def, hscv]
+          have := Fin.lt_def.mp hbclt
+          omega
+        have hlt_sc : ∀ i : Fin k, sc < i ↔ c ≤ i := fun i ↦ by
+          rw [Fin.lt_def, Fin.le_iff_val_le_val, hscv]
+          have := Fin.lt_def.mp hbclt
+          omega
+        have hrs_ab : a ≤ sb := (hle_sb a).mpr hablt
+        have hrs_bc : b ≤ sc := (hle_sc b).mpr hbclt
+        -- arc/complement descriptions of the four index blocks
+        have hFarc0 : Finset.univ.filter (fun i : Fin k ↦ a ≤ i ∧ i ≤ Mb) =
+            Finset.univ.filter (fun i : Fin k ↦ a ≤ i) := by
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h ↦ h.1, fun h ↦ ⟨h, hle_Mb i⟩⟩
+        have hFcmp0 : Finset.univ.filter (fun i : Fin k ↦ i < a ∨ Mb < i) =
+            J₁ := by
+          rw [hJ₁]
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h ↦ h.elim id fun h ↦ absurd h (hlt_Mb i),
+            fun h ↦ Or.inl h⟩
+        have hFarc1 : Finset.univ.filter (fun i : Fin k ↦ a ≤ i ∧ i ≤ sb) =
+            J₂ := by
+          rw [hJ₂]
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h ↦ ⟨h.1, (hle_sb i).mp h.2⟩,
+            fun h ↦ ⟨h.1, (hle_sb i).mpr h.2⟩⟩
+        have hFcmp1 : Finset.univ.filter (fun i : Fin k ↦ i < a ∨ sb < i) =
+            Finset.univ.filter (fun i : Fin k ↦ i < a ∨ b ≤ i) := by
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          constructor
+          · rintro (h | h)
+            · exact Or.inl h
+            · exact Or.inr ((hlt_sb i).mp h)
+          · rintro (h | h)
+            · exact Or.inl h
+            · exact Or.inr ((hlt_sb i).mpr h)
+        have hFarc2 : Finset.univ.filter (fun i : Fin k ↦ b ≤ i ∧ i ≤ sc) =
+            J₃ := by
+          rw [hJ₃]
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h ↦ ⟨h.1, (hle_sc i).mp h.2⟩,
+            fun h ↦ ⟨h.1, (hle_sc i).mpr h.2⟩⟩
+        have hFcmp2 : Finset.univ.filter (fun i : Fin k ↦ i < b ∨ sc < i) =
+            Finset.univ.filter (fun i : Fin k ↦ i < b ∨ c ≤ i) := by
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          constructor
+          · rintro (h | h)
+            · exact Or.inl h
+            · exact Or.inr ((hlt_sc i).mp h)
+          · rintro (h | h)
+            · exact Or.inl h
+            · exact Or.inr ((hlt_sc i).mpr h)
+        have hFarc3 : Finset.univ.filter (fun i : Fin k ↦ c ≤ i ∧ i ≤ Mb) =
+            J₄ := by
+          rw [hJ₄]
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h ↦ h.1, fun h ↦ ⟨h, hle_Mb i⟩⟩
+        have hFcmp3 : Finset.univ.filter (fun i : Fin k ↦ i < c ∨ Mb < i) =
+            Finset.univ.filter (fun i : Fin k ↦ i < c) := by
+          ext i
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          constructor
+          · rintro (h | h)
+            · exact h
+            · exact absurd h (hlt_Mb i)
+          · exact fun h ↦ Or.inl h
+        -- projected "block vs. remaining blocks" disjointness, once per block
+        have hD1 : Disjoint
+            (convexHull ℝ ((J₁.image (proj2 ∘ x ∘ σ) : Finset (Euc 2)) :
+              Set (Euc 2)))
+            (convexHull ℝ (((Finset.univ.filter fun i : Fin k ↦ a ≤ i).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          have h := (hull_arc_disjoint hvinj hVk hcrossK (hle_Mb a)).symm
+          rw [hFcmp0, hFarc0] at h
+          exact h
+        have hD2 : Disjoint
+            (convexHull ℝ ((J₂.image (proj2 ∘ x ∘ σ) : Finset (Euc 2)) :
+              Set (Euc 2)))
+            (convexHull ℝ (((Finset.univ.filter
+              fun i : Fin k ↦ i < a ∨ b ≤ i).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          have h := hull_arc_disjoint hvinj hVk hcrossK hrs_ab
+          rw [hFarc1, hFcmp1] at h
+          exact h
+        have hD3 : Disjoint
+            (convexHull ℝ ((J₃.image (proj2 ∘ x ∘ σ) : Finset (Euc 2)) :
+              Set (Euc 2)))
+            (convexHull ℝ (((Finset.univ.filter
+              fun i : Fin k ↦ i < b ∨ c ≤ i).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          have h := hull_arc_disjoint hvinj hVk hcrossK hrs_bc
+          rw [hFarc2, hFcmp2] at h
+          exact h
+        have hD4 : Disjoint
+            (convexHull ℝ ((J₄.image (proj2 ∘ x ∘ σ) : Finset (Euc 2)) :
+              Set (Euc 2)))
+            (convexHull ℝ (((Finset.univ.filter fun i : Fin k ↦ i < c).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          have h := hull_arc_disjoint hvinj hVk hcrossK (hle_Mb c)
+          rw [hFarc3, hFcmp3] at h
+          exact h
+        -- every block is contained in the complement of every other block
+        have hsubJ : ∀ m l : Fin 4, l ≠ m →
+            (![J₁, J₂, J₃, J₄] l : Finset (Fin k)) ⊆
+            ![Finset.univ.filter (fun i : Fin k ↦ a ≤ i),
+              Finset.univ.filter (fun i : Fin k ↦ i < a ∨ b ≤ i),
+              Finset.univ.filter (fun i : Fin k ↦ i < b ∨ c ≤ i),
+              Finset.univ.filter (fun i : Fin k ↦ i < c)] m := by
+          intro m l hlm w hw
+          fin_cases m <;> fin_cases l <;>
+            first
+              | exact absurd rfl hlm
+              | (simp [hJ₁, hJ₂, hJ₃, hJ₄] at hw ⊢ <;> omega)
+        have hsubJ' : ∀ m l : Fin 4, l ≠ m →
+            (![J₂, J₁, J₄, J₃] l : Finset (Fin k)) ⊆
+            ![Finset.univ.filter (fun i : Fin k ↦ i < a ∨ b ≤ i),
+              Finset.univ.filter (fun i : Fin k ↦ a ≤ i),
+              Finset.univ.filter (fun i : Fin k ↦ i < c),
+              Finset.univ.filter (fun i : Fin k ↦ i < b ∨ c ≤ i)] m := by
+          intro m l hlm w hw
+          fin_cases m <;> fin_cases l <;>
+            first
+              | exact absurd rfl hlm
+              | (simp [hJ₁, hJ₂, hJ₃, hJ₄] at hw ⊢ <;> omega)
+        have hD : ∀ i : Fin 4, Disjoint
+            (convexHull ℝ (((![J₁, J₂, J₃, J₄] i : Finset (Fin k)).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2)))
+            (convexHull ℝ (((![Finset.univ.filter (fun i : Fin k ↦ a ≤ i),
+                Finset.univ.filter (fun i : Fin k ↦ i < a ∨ b ≤ i),
+                Finset.univ.filter (fun i : Fin k ↦ i < b ∨ c ≤ i),
+                Finset.univ.filter (fun i : Fin k ↦ i < c)] i :
+                  Finset (Fin k)).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          intro i
+          fin_cases i <;> simp only [Matrix.cons_val] <;> assumption
+        have hD' : ∀ i : Fin 4, Disjoint
+            (convexHull ℝ (((![J₂, J₁, J₄, J₃] i : Finset (Fin k)).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2)))
+            (convexHull ℝ (((![Finset.univ.filter
+                (fun i : Fin k ↦ i < a ∨ b ≤ i),
+                Finset.univ.filter (fun i : Fin k ↦ a ≤ i),
+                Finset.univ.filter (fun i : Fin k ↦ i < c),
+                Finset.univ.filter (fun i : Fin k ↦ i < b ∨ c ≤ i)] i :
+                  Finset (Fin k)).image
+              (proj2 ∘ x ∘ σ) : Finset (Euc 2)) : Set (Euc 2))) := by
+          intro i
+          fin_cases i <;> simp only [Matrix.cons_val] <;> assumption
+        have hvec : ∀ j : Fin 4,
+            (![J₁.image (x ∘ σ), J₂.image (x ∘ σ), J₃.image (x ∘ σ),
+                J₄.image (x ∘ σ)] j : Finset (Euc 3)) =
+              ((![J₁, J₂, J₃, J₄] j : Finset (Fin k)).image (x ∘ σ)) := by
+          intro j
+          fin_cases j <;> rfl
+        have hvec' : ∀ j : Fin 4,
+            (![J₂.image (x ∘ σ), J₁.image (x ∘ σ), J₄.image (x ∘ σ),
+                J₃.image (x ∘ σ)] j : Finset (Euc 3)) =
+              ((![J₂, J₁, J₄, J₃] j : Finset (Fin k)).image (x ∘ σ)) := by
+          intro j
+          fin_cases j <;> rfl
+        have hconv4 : ∀ i : Fin 4, Disjoint
+            (convexHull ℝ (proj2 ''
+              ((![J₁.image (x ∘ σ), J₂.image (x ∘ σ), J₃.image (x ∘ σ),
+                  J₄.image (x ∘ σ)] i : Finset (Euc 3)) : Set (Euc 3))))
+            (convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i, proj2 ''
+              ((![J₁.image (x ∘ σ), J₂.image (x ∘ σ), J₃.image (x ∘ σ),
+                  J₄.image (x ∘ σ)] j : Finset (Euc 3)) : Set (Euc 3)))) :=
+          fun i ↦ disjoint_hconv_four hvec hsubJ hD i
+        have hconv4' : ∀ i : Fin 4, Disjoint
+            (convexHull ℝ (proj2 ''
+              ((![J₂.image (x ∘ σ), J₁.image (x ∘ σ), J₄.image (x ∘ σ),
+                  J₃.image (x ∘ σ)] i : Finset (Euc 3)) : Set (Euc 3))))
+            (convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i, proj2 ''
+              ((![J₂.image (x ∘ σ), J₁.image (x ∘ σ), J₄.image (x ∘ σ),
+                  J₃.image (x ∘ σ)] j : Finset (Euc 3)) : Set (Euc 3)))) :=
+          fun i ↦ disjoint_hconv_four hvec' hsubJ' hD' i
         rcases hmono with hall | hall
         · have hgpU : InGeneralPosition
               ((X₁ ∪ X₂ ∪ X₃ ∪ X₄ : Finset (Euc 3)) : Set (Euc 3)) := by
@@ -1843,7 +2090,7 @@ theorem cor_2_4 {N : ℕ} {x : Fin N → Euc 3}
               (hσmem i₁) (hσmem i₂) (hσmem i₃) (hσmem i₄) h12 h23 h34
           have hd := prop_2_3 (hJ1.image (x ∘ σ)) (hJ2.image (x ∘ σ))
             (hJ3.image (x ∘ σ)) (hJ4.image (x ∘ σ))
-            hd12 hd13 hd14 hd23 hd24 hd34 hgpU habove
+            hd12 hd13 hd14 hd23 hd24 hd34 hgpU hconv4 habove
           rw [hU₁₃, hU₂₄] at hd
           exact hd
         · have hgpU' : InGeneralPosition
@@ -1877,7 +2124,7 @@ theorem cor_2_4 {N : ℕ} {x : Fin N → Euc 3}
             exact belowSeg_iff.1 hb
           have hd := prop_2_3 (hJ2.image (x ∘ σ)) (hJ1.image (x ∘ σ))
             (hJ4.image (x ∘ σ)) (hJ3.image (x ∘ σ))
-            hd12.symm hd24 hd23 hd14 hd13 hd34.symm hgpU' habove
+            hd12.symm hd24 hd23 hd14 hd13 hd34.symm hgpU' hconv4' habove
           have hd' := hd.symm
           rw [hU₁₃, hU₂₄] at hd'
           exact hd'

@@ -1247,6 +1247,980 @@ private lemma disjoint_hull_union {k : ℕ} (X : Fin k → Finset (Euc 3))
     · -- `#B' = 3`: `3 + 3 > 5`, impossible.
       omega
 
+/-- The vertical unit vector in `Euc 3`. -/
+private def z3 : Euc 3 := PiLp.single 2 (2 : Fin 3) (1 : ℝ)
+
+private lemma z3_apply (i : Fin 3) : z3 i = if i = 2 then 1 else 0 := by
+  rw [z3, PiLp.single_apply]
+
+private lemma z3_apply_two : z3 (2 : Fin 3) = 1 := by simp [z3_apply]
+
+private lemma z3_proj2 : proj2 z3 = 0 := by
+  ext i
+  have hi : (Fin.castSucc i) ≠ (2 : Fin 3) := by
+    apply Fin.ne_of_val_ne
+    have hv2 : (2 : Fin 3).val = 2 := rfl
+    simp only [Fin.val_castSucc, hv2]
+    have : i.val < 2 := i.isLt
+    omega
+  show z3 i.castSucc = 0
+  simp [z3_apply, hi]
+
+private lemma proj2_add_z3 (x : Euc 3) (σ : ℝ) :
+    proj2 (x + σ • z3) = proj2 x := by
+  rw [map_add, map_smul, z3_proj2, smul_zero, add_zero]
+
+private lemma add_z3_two (x : Euc 3) (σ : ℝ) :
+    (x + σ • z3) (2 : Fin 3) = x 2 + σ := by
+  simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul, z3_apply_two, mul_one]
+
+private lemma sub_z3_two (x : Euc 3) (σ : ℝ) :
+    (x - σ • z3) (2 : Fin 3) = x 2 - σ := by
+  simp only [PiLp.sub_apply, PiLp.smul_apply, smul_eq_mul, z3_apply_two, mul_one]
+
+private lemma proj2_sub_z3 (x : Euc 3) (σ : ℝ) :
+    proj2 (x - σ • z3) = proj2 x := by
+  rw [map_sub, map_smul, z3_proj2, smul_zero, sub_zero]
+
+/-- `proj2` of a point of a convex hull lies in the hull of the `proj2`-image. -/
+private lemma proj2_mem_convexHull {S : Set (Euc 3)} {x : Euc 3}
+    (hx : x ∈ convexHull ℝ S) : proj2 x ∈ convexHull ℝ (proj2 '' S) := by
+  have h : proj2 x ∈ proj2 '' convexHull ℝ S := ⟨x, hx, rfl⟩
+  rwa [LinearMap.image_convexHull] at h
+
+/-- `proj2` of a point of a segment lies in the projected segment. -/
+private lemma proj2_mem_segment {a b x : Euc 3} (hx : x ∈ segment ℝ a b) :
+    proj2 x ∈ segment ℝ (proj2 a) (proj2 b) := by
+  rw [← convexHull_pair] at hx ⊢
+  have := proj2_mem_convexHull hx
+  rwa [Set.image_insert_eq, Set.image_singleton] at this
+
+/-- `1-s`/`s` affine combination as a base point plus a scalar multiple of the
+difference, in an arbitrary real module. -/
+private lemma seg_smul_eq_mod {V : Type*} [AddCommGroup V] [Module ℝ V]
+    (s : ℝ) (a b : V) : (1 - s) • a + s • b = a + s • (b - a) := by
+  module
+
+/-- If two planar segments share two distinct points, an endpoint of one lies
+in the other segment. -/
+private lemma seg_overlap_endpoint {p0 p1 q0 q1 : Euc 2}
+    (hp : p0 ≠ p1)
+    {α α' β β' : ℝ} (hα : α ∈ Set.Icc 0 1) (hα' : α' ∈ Set.Icc 0 1)
+    (hβ : β ∈ Set.Icc 0 1) (hβ' : β' ∈ Set.Icc 0 1) (hαα' : α ≠ α')
+    (e1 : (1 - α) • p0 + α • p1 = (1 - β) • q0 + β • q1)
+    (e2 : (1 - α') • p0 + α' • p1 = (1 - β') • q0 + β' • q1) :
+    q0 ∈ segment ℝ p0 p1 ∨ q1 ∈ segment ℝ p0 p1 ∨
+      p0 ∈ segment ℝ q0 q1 ∨ p1 ∈ segment ℝ q0 q1 := by
+  set d := p1 - p0 with hd
+  have hd0 : d ≠ 0 := sub_ne_zero.mpr (Ne.symm hp)
+  have e1' : p0 + α • d = q0 + β • (q1 - q0) := by
+    rw [← seg_smul_eq_mod β q0 q1, ← e1, seg_smul_eq_mod α p0 p1, ← hd]
+  have e2' : p0 + α' • d = q0 + β' • (q1 - q0) := by
+    rw [← seg_smul_eq_mod β' q0 q1, ← e2, seg_smul_eq_mod α' p0 p1, ← hd]
+  have hsub : (α - α') • d = (β - β') • (q1 - q0) := by
+    linear_combination (norm := module) e1' - e2'
+  have hββ' : β ≠ β' := by
+    rintro rfl
+    rw [sub_self, zero_smul] at hsub
+    rcases smul_eq_zero.mp hsub with h | h
+    · exact hαα' (sub_eq_zero.mp h)
+    · exact hd0 h
+  set c := (α - α') / (β - β') with hc
+  have hdir : q1 - q0 = c • d := by
+    have h : q1 - q0 = (β - β')⁻¹ • ((β - β') • (q1 - q0)) := by
+      rw [smul_smul, inv_mul_cancel₀ (sub_ne_zero.mpr hββ'), one_smul]
+    rw [h, ← hsub, smul_smul, hc]
+    congr 1
+    rw [div_eq_mul_inv, mul_comm]
+  set u0 := α - β * c with hu0
+  set u1 := u0 + c with hu1
+  have hq0eq : q0 = p0 + u0 • d := by
+    have e1'' : p0 + α • d = q0 + β • (c • d) := hdir ▸ e1'
+    rw [hu0]
+    linear_combination (norm := module) -e1''
+  have hq1eq : q1 = p0 + u1 • d := by
+    have h : q1 = q0 + (q1 - q0) := by module
+    rw [h, hdir, hq0eq, hu1]
+    module
+  have hα'rel : α - α' = (β - β') * c := by
+    have h1 : (α - α' - (β - β') * c) • d = 0 := by
+      have h2 : (α - α') • d - (β - β') • (q1 - q0) = 0 :=
+        sub_eq_zero.mpr hsub
+      rw [hdir] at h2
+      linear_combination (norm := module) h2
+    rcases smul_eq_zero.mp h1 with h3 | h3
+    · linarith
+    · exact absurd h3 hd0
+  have hmem : ∀ θ ∈ Set.Icc (0 : ℝ) 1, ∀ v : ℝ, v = u0 + θ * c →
+      v ∈ Set.Icc (min u0 u1) (max u0 u1) := by
+    intro θ hθ v hv
+    rw [hv, hu1]
+    rcases le_total u0 (u0 + c) with h | h
+    · rw [min_eq_left h, max_eq_right h]
+      constructor <;> nlinarith [hθ.1, hθ.2, h]
+    · rw [min_eq_right h, max_eq_left h]
+      constructor <;> nlinarith [hθ.1, hθ.2, h]
+  have hαJ : α ∈ Set.Icc (min u0 u1) (max u0 u1) :=
+    hmem β hβ α (by rw [hu0]; ring)
+  have hα'J : α' ∈ Set.Icc (min u0 u1) (max u0 u1) :=
+    hmem β' hβ' α' (by rw [hu0]; linear_combination -hα'rel)
+  rcases em (u0 ∈ Set.Icc (0 : ℝ) 1) with hu0I | hu0I
+  · refine Or.inl ?_
+    rw [segment_eq_image]
+    refine ⟨u0, hu0I, ?_⟩
+    show (1 - u0) • p0 + u0 • p1 = q0
+    rw [seg_smul_eq_mod]; exact hq0eq.symm
+  rcases em (u1 ∈ Set.Icc (0 : ℝ) 1) with hu1I | hu1I
+  · refine Or.inr (Or.inl ?_)
+    rw [segment_eq_image]
+    refine ⟨u1, hu1I, ?_⟩
+    show (1 - u1) • p0 + u1 • p1 = q1
+    rw [seg_smul_eq_mod]; exact hq1eq.symm
+  -- both `u0, u1` outside `[0,1]`: then `[0,1] ⊆ J`, so `p0 ∈ [q0,q1]`.
+  have hu0c : u0 < 0 ∨ 1 < u0 := by
+    rcases lt_or_ge u0 0 with h | h
+    · exact Or.inl h
+    · rcases lt_or_ge 1 u0 with h' | h'
+      · exact Or.inr h'
+      · exact absurd ⟨h, h'⟩ hu0I
+  have hu1c : u1 < 0 ∨ 1 < u1 := by
+    rcases lt_or_ge u1 0 with h | h
+    · exact Or.inl h
+    · rcases lt_or_ge 1 u1 with h' | h'
+      · exact Or.inr h'
+      · exact absurd ⟨h, h'⟩ hu1I
+  have hsgn : (u0 < 0 ∧ 1 < u1) ∨ (1 < u0 ∧ u1 < 0) := by
+    rcases hu0c with hu0n | hu0p
+    · rcases hu1c with hu1n | hu1p
+      · exfalso
+        have hm : max u0 u1 < 0 := max_lt hu0n hu1n
+        linarith [hαJ.2, hα.1]
+      · exact Or.inl ⟨hu0n, hu1p⟩
+    · rcases hu1c with hu1n | hu1p
+      · exact Or.inr ⟨hu0p, hu1n⟩
+      · exfalso
+        have hm : 1 < min u0 u1 := lt_min hu0p hu1p
+        linarith [hα'J.1, hα'.2]
+  have hne : u1 ≠ u0 := by
+    rcases hsgn with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> linarith
+  have hJ0 : (0 : ℝ) ∈ Set.Icc (min u0 u1) (max u0 u1) := by
+    rcases hsgn with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [min_eq_left (le_of_lt (lt_trans h1 (lt_trans zero_lt_one h2))),
+        max_eq_right (le_of_lt (lt_trans h1 (lt_trans zero_lt_one h2)))]
+      exact ⟨h1.le, by linarith⟩
+    · rw [min_eq_right (le_of_lt (lt_trans h2 (lt_trans zero_lt_one h1))),
+        max_eq_left (le_of_lt (lt_trans h2 (lt_trans zero_lt_one h1)))]
+      exact ⟨h2.le, by linarith⟩
+  have hpar : ∀ v ∈ Set.Icc (min u0 u1) (max u0 u1),
+      ∃ t ∈ Set.Icc (0 : ℝ) 1, v = u0 + t * (u1 - u0) := by
+    intro v hv
+    rcases lt_or_ge u0 u1 with h | h
+    · rw [min_eq_left h.le, max_eq_right h.le] at hv
+      refine ⟨(v - u0) / (u1 - u0), ⟨?_, ?_⟩, ?_⟩
+      · exact div_nonneg (sub_nonneg.mpr hv.1) (sub_pos.mpr h).le
+      · rw [div_le_one (sub_pos.mpr h)]
+        exact sub_le_sub_right hv.2 _
+      · rw [div_mul_cancel₀ _ (sub_ne_zero.mpr (Ne.symm (ne_of_lt h)))]
+        ring
+    · have h' : u1 < u0 := lt_of_le_of_ne h hne
+      rw [min_eq_right h'.le, max_eq_left h'.le] at hv
+      refine ⟨(v - u0) / (u1 - u0), ⟨?_, ?_⟩, ?_⟩
+      · exact div_nonneg_of_nonpos (sub_nonpos.mpr hv.2) (sub_nonpos.mpr h'.le)
+      · rw [div_le_iff_of_neg (sub_neg.mpr h')]
+        linarith [hv.1]
+      · rw [div_mul_cancel₀ _ (sub_ne_zero.mpr (ne_of_lt h'))]
+        ring
+  obtain ⟨t0, ht0, ht0e⟩ := hpar 0 hJ0
+  have hdir2 : (u1 - u0) • d = q1 - q0 := by
+    rw [hu1, hdir]
+    module
+  have hp0eq : p0 = (1 - t0) • q0 + t0 • q1 := by
+    have key : t0 * (u1 - u0) = -u0 := by linarith [ht0e]
+    have key' : (t0 * (u1 - u0)) • d = (-u0) • d := congrArg (· • d) key
+    rw [seg_smul_eq_mod, ← hdir2]
+    linear_combination (norm := module) -hq0eq - key'
+  refine Or.inr (Or.inr (Or.inl ?_))
+  rw [segment_eq_image]
+  refine ⟨t0, ht0, ?_⟩
+  show (1 - t0) • q0 + t0 • q1 = p0
+  exact hp0eq.symm
+
+/-- **Proposition 2.3, core.**  If the four projected sets are in convex
+position (`hconv`) and every `X₁X₃` segment lies strictly above every `X₂X₄`
+segment at their (necessarily interior) projected crossings (`habove`), then
+`conv(X₁∪X₃)` and `conv(X₂∪X₄)` are disjoint. -/
+private lemma conv13_conv24_disjoint {X1 X2 X3 X4 : Finset (Euc 3)}
+    (hconv : ∀ i : Fin 4, Disjoint
+      (convexHull ℝ (proj2 ''
+        ((![X1, X2, X3, X4] i : Finset (Euc 3)) : Set (Euc 3))))
+      (convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i,
+        proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3)))))
+    (habove : ∀ x1 ∈ X1, ∀ x2 ∈ X2, ∀ x3 ∈ X3, ∀ x4 ∈ X4,
+      AboveSeg x1 x3 x2 x4) :
+    Disjoint (convexHull ℝ ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3)))
+             (convexHull ℝ ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) := by
+  classical
+  rw [Set.disjoint_left]
+  intro q hqA hqB
+  -- `hpt i v`: a projected point in both the class-`i` hull and the hull of
+  -- the remaining classes contradicts `hconv i`.
+  have hpt : ∀ i : Fin 4, ∀ v : Euc 2,
+      v ∈ convexHull ℝ (proj2 ''
+        ((![X1, X2, X3, X4] i : Finset (Euc 3)) : Set (Euc 3))) →
+      v ∈ convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i,
+        proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3))) →
+      False := fun i v h1 h2 ↦ Set.disjoint_left.mp (hconv i) h1 h2
+  -- a class-`i` point projects into its own hull
+  have hown : ∀ {i : Fin 4} {x : Euc 3},
+      x ∈ (![X1, X2, X3, X4] i : Finset (Euc 3)) →
+      proj2 x ∈ convexHull ℝ (proj2 ''
+        ((![X1, X2, X3, X4] i : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro i x hx
+    exact subset_convexHull ℝ _ ⟨x, Finset.mem_coe.mpr hx, rfl⟩
+  -- a class-`j` point projects into the `i`-rest hull when `j ≠ i`
+  have hrest : ∀ {j i : Fin 4}, j ≠ i → ∀ {x : Euc 3},
+      x ∈ (![X1, X2, X3, X4] j : Finset (Euc 3)) →
+      proj2 x ∈ convexHull ℝ (⋃ l : Fin 4, ⋃ _ : l ≠ i,
+        proj2 '' ((![X1, X2, X3, X4] l : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro j i hji x hx
+    exact subset_convexHull ℝ _
+      (Set.mem_iUnion.mpr ⟨j, Set.mem_iUnion.mpr ⟨hji,
+        ⟨x, Finset.mem_coe.mpr hx, rfl⟩⟩⟩)
+  -- `conv (proj2 '' (X1∪X3))` is inside the `i`-rest hull for `i ∉ {0,2}`
+  have subA : ∀ i : Fin 4, i ≠ 0 → i ≠ 2 →
+      convexHull ℝ (proj2 '' ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3))) ⊆
+        convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i,
+          proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro i hi0 hi2
+    apply convexHull_mono
+    rintro v ⟨x, hx, rfl⟩
+    rw [Finset.mem_coe, Finset.mem_union] at hx
+    rcases hx with hx | hx
+    · exact Set.mem_iUnion.mpr ⟨0, Set.mem_iUnion.mpr ⟨Ne.symm hi0,
+        ⟨x, Finset.mem_coe.mpr (by simpa using hx), rfl⟩⟩⟩
+    · exact Set.mem_iUnion.mpr ⟨2, Set.mem_iUnion.mpr ⟨Ne.symm hi2,
+        ⟨x, Finset.mem_coe.mpr (by simpa using hx), rfl⟩⟩⟩
+  -- `conv (proj2 '' (X2∪X4))` is inside the `i`-rest hull for `i ∉ {1,3}`
+  have subB : ∀ i : Fin 4, i ≠ 1 → i ≠ 3 →
+      convexHull ℝ (proj2 '' ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) ⊆
+        convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ i,
+          proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro i hi1 hi3
+    apply convexHull_mono
+    rintro v ⟨x, hx, rfl⟩
+    rw [Finset.mem_coe, Finset.mem_union] at hx
+    rcases hx with hx | hx
+    · exact Set.mem_iUnion.mpr ⟨1, Set.mem_iUnion.mpr ⟨Ne.symm hi1,
+        ⟨x, Finset.mem_coe.mpr (by simpa using hx), rfl⟩⟩⟩
+    · exact Set.mem_iUnion.mpr ⟨3, Set.mem_iUnion.mpr ⟨Ne.symm hi3,
+        ⟨x, Finset.mem_coe.mpr (by simpa using hx), rfl⟩⟩⟩
+  -- push a hull membership through a set inclusion, then project
+  have hullmem : ∀ {S T : Finset (Euc 3)} {v : Euc 3}, v ∈ convexHull ℝ ↑S →
+      ↑S ⊆ ↑T →
+      proj2 v ∈ convexHull ℝ (proj2 '' (↑T : Set (Euc 3))) := by
+    intro S T v hv hST
+    exact convexHull_mono (Set.image_mono hST) (proj2_mem_convexHull hv)
+  -- `proj2 v` is in `conv (proj2 '' (X1∪X3))` for `v` on a `13`-segment
+  have hull13 : ∀ {v x y : Euc 3}, v ∈ segment ℝ x y →
+      x ∈ (X1 ∪ X3 : Finset (Euc 3)) → y ∈ (X1 ∪ X3 : Finset (Euc 3)) →
+      proj2 v ∈ convexHull ℝ
+        (proj2 '' ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro v x y hv hx hy
+    exact hullmem (by rwa [Finset.coe_pair, convexHull_pair])
+      (Finset.coe_subset.mpr (Finset.insert_subset_iff.mpr
+        ⟨hx, Finset.singleton_subset_iff.mpr hy⟩))
+  -- `proj2 v` is in `conv (proj2 '' (X2∪X4))` for `v` on a `24`-segment
+  have hull24 : ∀ {v x y : Euc 3}, v ∈ segment ℝ x y →
+      x ∈ (X2 ∪ X4 : Finset (Euc 3)) → y ∈ (X2 ∪ X4 : Finset (Euc 3)) →
+      proj2 v ∈ convexHull ℝ
+        (proj2 '' ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro v x y hv hx hy
+    exact hullmem (by rwa [Finset.coe_pair, convexHull_pair])
+      (Finset.coe_subset.mpr (Finset.insert_subset_iff.mpr
+        ⟨hx, Finset.singleton_subset_iff.mpr hy⟩))
+  -- a projected point on the join of two class-`i` points is in the class hull
+  have segown : ∀ (i : Fin 4) {v x y : Euc 3},
+      x ∈ (![X1, X2, X3, X4] i : Finset (Euc 3)) →
+      y ∈ (![X1, X2, X3, X4] i : Finset (Euc 3)) →
+      proj2 v ∈ segment ℝ (proj2 x) (proj2 y) →
+      proj2 v ∈ convexHull ℝ (proj2 ''
+        ((![X1, X2, X3, X4] i : Finset (Euc 3)) : Set (Euc 3))) := by
+    intro i v x y hx hy hseg
+    have h1 : proj2 v ∈ convexHull ℝ ({proj2 x, proj2 y} : Set (Euc 2)) := by
+      rw [convexHull_pair]; exact hseg
+    refine convexHull_mono ?_ h1
+    rintro w hw
+    simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+    rcases hw with rfl | rfl
+    · exact ⟨x, Finset.mem_coe.mpr hx, rfl⟩
+    · exact ⟨y, Finset.mem_coe.mpr hy, rfl⟩
+  -- the segment–segment lemma: an `X₁X₃` segment shifted up by `σa` cannot
+  -- meet an `X₂X₄` segment shifted vertically by `σb ≤ σa`.
+  have segseg : ∀ {a0' a1' b0' b1' : Euc 3} {σa σb : ℝ}, σb ≤ σa →
+      a0' ∈ X1 → a1' ∈ X3 → b0' ∈ X2 → b1' ∈ X4 →
+      ∀ {u : Euc 3}, u ∈ segment ℝ (a0' + σa • z3) (a1' + σa • z3) →
+      u ∈ segment ℝ (b0' + σb • z3) (b1' + σb • z3) → False := by
+    intro a0' a1' b0' b1' σa σb hσ ha0 ha1 hb0 hb1 u huA huB
+    rw [segment_eq_image] at huA huB
+    obtain ⟨α, hα, hAeq⟩ := huA
+    obtain ⟨β, hβ, hBeq⟩ := huB
+    have hAeq' : (1 - α) • a0' + α • a1' + σa • z3 = u := by
+      rw [← hAeq]
+      show (1 - α) • a0' + α • a1' + σa • z3 =
+        (1 - α) • (a0' + σa • z3) + α • (a1' + σa • z3)
+      module
+    have hBeq' : (1 - β) • b0' + β • b1' + σb • z3 = u := by
+      rw [← hBeq]
+      show (1 - β) • b0' + β • b1' + σb • z3 =
+        (1 - β) • (b0' + σb • z3) + β • (b1' + σb • z3)
+      module
+    have hru : proj2 u = (1 - α) • proj2 a0' + α • proj2 a1' := by
+      rw [← hAeq']
+      simp only [map_add, map_smul, z3_proj2, smul_zero, add_zero]
+    have hrv : proj2 u = (1 - β) • proj2 b0' + β • proj2 b1' := by
+      rw [← hBeq']
+      simp only [map_add, map_smul, z3_proj2, smul_zero, add_zero]
+    -- the projected endpoints are distinct, else `hconv` is contradicted
+    have hpa : proj2 a0' ≠ proj2 a1' := by
+      intro h
+      have h2 : proj2 a1' ∈ convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ (0 : Fin 4),
+          proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3))) :=
+        hrest (show (2 : Fin 4) ≠ 0 by decide) (by simpa using ha1)
+      rw [← h] at h2
+      exact hpt 0 _ (hown (by simpa using ha0)) h2
+    have hpb : proj2 b0' ≠ proj2 b1' := by
+      intro h
+      have h2 : proj2 b1' ∈ convexHull ℝ (⋃ j : Fin 4, ⋃ _ : j ≠ (1 : Fin 4),
+          proj2 '' ((![X1, X2, X3, X4] j : Finset (Euc 3)) : Set (Euc 3))) :=
+        hrest (show (3 : Fin 4) ≠ 1 by decide) (by simpa using hb1)
+      rw [← h] at h2
+      exact hpt 1 _ (hown (by simpa using hb0)) h2
+    -- `proj2 u` sits in both union hulls
+    have huA' : proj2 u ∈ convexHull ℝ
+        (proj2 '' ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3))) := by
+      have h1 : proj2 u ∈ convexHull ℝ
+          ({proj2 a0', proj2 a1'} : Set (Euc 2)) := by
+        rw [convexHull_pair, segment_eq_image]
+        exact ⟨α, hα, hru.symm⟩
+      refine convexHull_mono ?_ h1
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨a0', Finset.mem_coe.mpr (Finset.mem_union_left _ ha0), rfl⟩
+      · exact ⟨a1', Finset.mem_coe.mpr (Finset.mem_union_right _ ha1), rfl⟩
+    have huB' : proj2 u ∈ convexHull ℝ
+        (proj2 '' ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) := by
+      have h1 : proj2 u ∈ convexHull ℝ
+          ({proj2 b0', proj2 b1'} : Set (Euc 2)) := by
+        rw [convexHull_pair, segment_eq_image]
+        exact ⟨β, hβ, hrv.symm⟩
+      refine convexHull_mono ?_ h1
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨b0', Finset.mem_coe.mpr (Finset.mem_union_left _ hb0), rfl⟩
+      · exact ⟨b1', Finset.mem_coe.mpr (Finset.mem_union_right _ hb1), rfl⟩
+    -- endpoint meetings are excluded by `hconv`
+    rcases eq_or_ne α 0 with hα0 | hα0
+    · have hp : (1 - β) • proj2 b0' + β • proj2 b1' = proj2 a0' := by
+        have hp0 : proj2 u = proj2 a0' := by
+          rw [hα0] at hru; simpa using hru
+        rw [hp0] at hrv; exact hrv.symm
+      have hseg : proj2 a0' ∈ segment ℝ (proj2 b0') (proj2 b1') := by
+        rw [segment_eq_image]; exact ⟨β, hβ, hp⟩
+      have h1 : proj2 a0' ∈ convexHull ℝ
+          ({proj2 b0', proj2 b1'} : Set (Euc 2)) := by
+        rwa [convexHull_pair]
+      refine hpt 0 _ (hown (by simpa using ha0))
+        (subB 0 (by decide) (by decide) (convexHull_mono ?_ h1))
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨b0', Finset.mem_coe.mpr (Finset.mem_union_left _ hb0), rfl⟩
+      · exact ⟨b1', Finset.mem_coe.mpr (Finset.mem_union_right _ hb1), rfl⟩
+    rcases eq_or_ne α 1 with hα1 | hα1
+    · have hp : (1 - β) • proj2 b0' + β • proj2 b1' = proj2 a1' := by
+        have hp0 : proj2 u = proj2 a1' := by
+          rw [hα1] at hru; simpa using hru
+        rw [hp0] at hrv; exact hrv.symm
+      have hseg : proj2 a1' ∈ segment ℝ (proj2 b0') (proj2 b1') := by
+        rw [segment_eq_image]; exact ⟨β, hβ, hp⟩
+      have h1 : proj2 a1' ∈ convexHull ℝ
+          ({proj2 b0', proj2 b1'} : Set (Euc 2)) := by
+        rwa [convexHull_pair]
+      refine hpt 2 _ (hown (by simpa using ha1))
+        (subB 2 (by decide) (by decide) (convexHull_mono ?_ h1))
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨b0', Finset.mem_coe.mpr (Finset.mem_union_left _ hb0), rfl⟩
+      · exact ⟨b1', Finset.mem_coe.mpr (Finset.mem_union_right _ hb1), rfl⟩
+    rcases eq_or_ne β 0 with hβ0 | hβ0
+    · have hp : (1 - α) • proj2 a0' + α • proj2 a1' = proj2 b0' := by
+        have hp0 : proj2 u = proj2 b0' := by
+          rw [hβ0] at hrv; simpa using hrv
+        rw [hp0] at hru; exact hru.symm
+      have hseg : proj2 b0' ∈ segment ℝ (proj2 a0') (proj2 a1') := by
+        rw [segment_eq_image]; exact ⟨α, hα, hp⟩
+      have h1 : proj2 b0' ∈ convexHull ℝ
+          ({proj2 a0', proj2 a1'} : Set (Euc 2)) := by
+        rwa [convexHull_pair]
+      refine hpt 1 _ (hown (by simpa using hb0))
+        (subA 1 (by decide) (by decide) (convexHull_mono ?_ h1))
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨a0', Finset.mem_coe.mpr (Finset.mem_union_left _ ha0), rfl⟩
+      · exact ⟨a1', Finset.mem_coe.mpr (Finset.mem_union_right _ ha1), rfl⟩
+    rcases eq_or_ne β 1 with hβ1 | hβ1
+    · have hp : (1 - α) • proj2 a0' + α • proj2 a1' = proj2 b1' := by
+        have hp0 : proj2 u = proj2 b1' := by
+          rw [hβ1] at hrv; simpa using hrv
+        rw [hp0] at hru; exact hru.symm
+      have hseg : proj2 b1' ∈ segment ℝ (proj2 a0') (proj2 a1') := by
+        rw [segment_eq_image]; exact ⟨α, hα, hp⟩
+      have h1 : proj2 b1' ∈ convexHull ℝ
+          ({proj2 a0', proj2 a1'} : Set (Euc 2)) := by
+        rwa [convexHull_pair]
+      refine hpt 3 _ (hown (by simpa using hb1))
+        (subA 3 (by decide) (by decide) (convexHull_mono ?_ h1))
+      rintro w hw
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+      rcases hw with rfl | rfl
+      · exact ⟨a0', Finset.mem_coe.mpr (Finset.mem_union_left _ ha0), rfl⟩
+      · exact ⟨a1', Finset.mem_coe.mpr (Finset.mem_union_right _ ha1), rfl⟩
+    -- interior parameters: use `AboveSeg`
+    obtain ⟨s, t, hs0, hs1, ht0, ht1, hproj, hgt⟩ :=
+      habove a0' ha0 b0' hb0 a1' ha1 b1' hb1
+    have hproj' : (1 - s) • proj2 a0' + s • proj2 a1' =
+        (1 - t) • proj2 b0' + t • proj2 b1' := by
+      simp only [← map_smul, ← map_add]
+      exact hproj
+    by_cases hrr : proj2 u = (1 - s) • proj2 a0' + s • proj2 a1'
+    · -- the meeting projection is the `AboveSeg` crossing: heights collide
+      have hαs : α = s := by
+        have e : (1 - α) • proj2 a0' + α • proj2 a1' =
+            (1 - s) • proj2 a0' + s • proj2 a1' := hru.symm.trans hrr
+        have e2 : α • (proj2 a1' - proj2 a0') =
+            s • (proj2 a1' - proj2 a0') := by
+          rw [seg_smul_eq_mod, seg_smul_eq_mod] at e
+          linear_combination (norm := module) e
+        rcases smul_eq_zero.mp (show (α - s) • (proj2 a1' - proj2 a0') = 0
+            from by linear_combination (norm := module) e2) with h | h
+        · linarith
+        · exact absurd (sub_eq_zero.mp h) (Ne.symm hpa)
+      have hβt : β = t := by
+        have e : (1 - β) • proj2 b0' + β • proj2 b1' =
+            (1 - t) • proj2 b0' + t • proj2 b1' :=
+          hrv.symm.trans (hrr.trans hproj')
+        have e2 : β • (proj2 b1' - proj2 b0') =
+            t • (proj2 b1' - proj2 b0') := by
+          rw [seg_smul_eq_mod, seg_smul_eq_mod] at e
+          linear_combination (norm := module) e
+        rcases smul_eq_zero.mp (show (β - t) • (proj2 b1' - proj2 b0') = 0
+            from by linear_combination (norm := module) e2) with h | h
+        · linarith
+        · exact absurd (sub_eq_zero.mp h) (Ne.symm hpb)
+      have hzu : u 2 = ((1 - s) • a0' + s • a1') 2 + σa := by
+        have e : u = (1 - s) • a0' + s • a1' + σa • z3 := by
+          rw [← hAeq', hαs]
+        rw [e]
+        simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul, z3_apply_two,
+          mul_one]
+      have hzv : u 2 = ((1 - t) • b0' + t • b1') 2 + σb := by
+        have e : u = (1 - t) • b0' + t • b1' + σb • z3 := by
+          rw [← hBeq', hβt]
+        rw [e]
+        simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul, z3_apply_two,
+          mul_one]
+      linarith [hgt]
+    · -- two distinct common projected points: the segments overlap
+      have hne2 : α ≠ s := by
+        intro h'
+        exact hrr (h' ▸ hru)
+      rcases seg_overlap_endpoint hpa hα ⟨hs0.le, hs1.le⟩ hβ ⟨ht0.le, ht1.le⟩
+          hne2 (hru.symm.trans hrv) hproj' with hL0 | hL1 | hU0 | hU1
+      · have h1 : proj2 b0' ∈ convexHull ℝ
+            ({proj2 a0', proj2 a1'} : Set (Euc 2)) := by
+          rwa [convexHull_pair]
+        refine hpt 1 _ (hown (by simpa using hb0))
+          (subA 1 (by decide) (by decide) (convexHull_mono ?_ h1))
+        rintro w hw
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+        rcases hw with rfl | rfl
+        · exact ⟨a0', Finset.mem_coe.mpr (Finset.mem_union_left _ ha0), rfl⟩
+        · exact ⟨a1', Finset.mem_coe.mpr (Finset.mem_union_right _ ha1), rfl⟩
+      · have h1 : proj2 b1' ∈ convexHull ℝ
+            ({proj2 a0', proj2 a1'} : Set (Euc 2)) := by
+          rwa [convexHull_pair]
+        refine hpt 3 _ (hown (by simpa using hb1))
+          (subA 3 (by decide) (by decide) (convexHull_mono ?_ h1))
+        rintro w hw
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+        rcases hw with rfl | rfl
+        · exact ⟨a0', Finset.mem_coe.mpr (Finset.mem_union_left _ ha0), rfl⟩
+        · exact ⟨a1', Finset.mem_coe.mpr (Finset.mem_union_right _ ha1), rfl⟩
+      · have h1 : proj2 a0' ∈ convexHull ℝ
+            ({proj2 b0', proj2 b1'} : Set (Euc 2)) := by
+          rwa [convexHull_pair]
+        refine hpt 0 _ (hown (by simpa using ha0))
+          (subB 0 (by decide) (by decide) (convexHull_mono ?_ h1))
+        rintro w hw
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+        rcases hw with rfl | rfl
+        · exact ⟨b0', Finset.mem_coe.mpr (Finset.mem_union_left _ hb0), rfl⟩
+        · exact ⟨b1', Finset.mem_coe.mpr (Finset.mem_union_right _ hb1), rfl⟩
+      · have h1 : proj2 a1' ∈ convexHull ℝ
+            ({proj2 b0', proj2 b1'} : Set (Euc 2)) := by
+          rwa [convexHull_pair]
+        refine hpt 2 _ (hown (by simpa using ha1))
+          (subB 2 (by decide) (by decide) (convexHull_mono ?_ h1))
+        rintro w hw
+        simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+        rcases hw with rfl | rfl
+        · exact ⟨b0', Finset.mem_coe.mpr (Finset.mem_union_left _ hb0), rfl⟩
+        · exact ⟨b1', Finset.mem_coe.mpr (Finset.mem_union_right _ hb1), rfl⟩
+  -- Kirchberger reduction to subsets of size ≤ 3 + 2
+  obtain ⟨A', B', hA', hB', hcard, hAB⟩ := kirchberger ⟨q, hqA, hqB⟩
+  obtain ⟨q', hq'A, hq'B⟩ := hAB
+  have projqA : proj2 q' ∈ convexHull ℝ
+      (proj2 '' ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3))) :=
+    hullmem hq'A hA'
+  have projqB : proj2 q' ∈ convexHull ℝ
+      (proj2 '' ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) :=
+    hullmem hq'B hB'
+  have hAne : A'.Nonempty := by
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    rw [h, Finset.coe_empty, convexHull_empty] at hq'A
+    simp at hq'A
+  have hBne : B'.Nonempty := by
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    rw [h, Finset.coe_empty, convexHull_empty] at hq'B
+    simp at hq'B
+  have hApos : 1 ≤ A'.card := Finset.card_pos.mpr hAne
+  have hBpos : 1 ≤ B'.card := Finset.card_pos.mpr hBne
+  have selA : ∀ a ∈ A', a ∈ X1 ∪ X3 := fun a ha ↦
+    Finset.mem_coe.mp (hA' (Finset.mem_coe.mpr ha))
+  have selB : ∀ b ∈ B', b ∈ X2 ∪ X4 := fun b hb ↦
+    Finset.mem_coe.mp (hB' (Finset.mem_coe.mpr hb))
+  by_cases hA1 : A'.card = 1
+  · obtain ⟨a, rfl⟩ := Finset.card_eq_one.mp hA1
+    rw [Finset.coe_singleton, convexHull_singleton, Set.mem_singleton_iff]
+      at hq'A
+    rw [hq'A] at projqB
+    rcases Finset.mem_union.mp (selA a (Finset.mem_singleton_self a))
+        with ha | ha
+    · exact hpt 0 _ (hown (by simpa using ha))
+        (subB 0 (by decide) (by decide) projqB)
+    · exact hpt 2 _ (hown (by simpa using ha))
+        (subB 2 (by decide) (by decide) projqB)
+  by_cases hB1 : B'.card = 1
+  · obtain ⟨b, rfl⟩ := Finset.card_eq_one.mp hB1
+    rw [Finset.coe_singleton, convexHull_singleton, Set.mem_singleton_iff]
+      at hq'B
+    rw [hq'B] at projqA
+    rcases Finset.mem_union.mp (selB b (Finset.mem_singleton_self b))
+        with hb | hb
+    · exact hpt 1 _ (hown (by simpa using hb))
+        (subA 1 (by decide) (by decide) projqA)
+    · exact hpt 3 _ (hown (by simpa using hb))
+        (subA 3 (by decide) (by decide) projqA)
+  have hA2 : 2 ≤ A'.card := by omega
+  have hB2 : 2 ≤ B'.card := by omega
+  have hA3 : A'.card ≤ 3 := by omega
+  have hB3 : B'.card ≤ 3 := by omega
+  interval_cases hAc : A'.card
+  · -- `#A' = 2`: `q'` lies on a `13`-segment
+    obtain ⟨a0, a1, ha01, rfl⟩ := Finset.card_eq_two.mp hAc
+    have ha0m := selA a0 (Finset.mem_insert_self _ _)
+    have ha1m := selA a1
+      (Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self _)))
+    interval_cases hBc : B'.card
+    · -- `#B' = 2`: two segments meet
+      obtain ⟨b0, b1, hb01, rfl⟩ := Finset.card_eq_two.mp hBc
+      rw [Finset.coe_pair, convexHull_pair] at hq'A hq'B
+      have hb0m := selB b0 (Finset.mem_insert_self _ _)
+      have hb1m := selB b1
+        (Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self _)))
+      rcases Finset.mem_union.mp ha0m with ha0X1 | ha0X3
+      · rcases Finset.mem_union.mp ha1m with ha1X1 | ha1X3
+        · exact hpt 0 _
+            (segown 0 (by simpa using ha0X1) (by simpa using ha1X1)
+              (proj2_mem_segment hq'A))
+            (subB 0 (by decide) (by decide) projqB)
+        · rcases Finset.mem_union.mp hb0m with hb0X2 | hb0X4
+          · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+            · exact hpt 1 _
+                (segown 1 (by simpa using hb0X2) (by simpa using hb1X2)
+                  (proj2_mem_segment hq'B))
+                (subA 1 (by decide) (by decide) projqA)
+            · exact segseg (le_refl 0) ha0X1 ha1X3 hb0X2 hb1X4
+                (by simpa using hq'A) (by simpa using hq'B)
+          · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+            · exact segseg (le_refl 0) ha0X1 ha1X3 hb1X2 hb0X4
+                (by simpa using hq'A)
+                (by rw [segment_symm]; simpa using hq'B)
+            · exact hpt 3 _
+                (segown 3 (by simpa using hb0X4) (by simpa using hb1X4)
+                  (proj2_mem_segment hq'B))
+                (subA 3 (by decide) (by decide) projqA)
+      · rcases Finset.mem_union.mp ha1m with ha1X1 | ha1X3
+        · rcases Finset.mem_union.mp hb0m with hb0X2 | hb0X4
+          · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+            · exact hpt 1 _
+                (segown 1 (by simpa using hb0X2) (by simpa using hb1X2)
+                  (proj2_mem_segment hq'B))
+                (subA 1 (by decide) (by decide) projqA)
+            · exact segseg (le_refl 0) ha1X1 ha0X3 hb0X2 hb1X4
+                (by rw [segment_symm]; simpa using hq'A)
+                (by simpa using hq'B)
+          · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+            · exact segseg (le_refl 0) ha1X1 ha0X3 hb1X2 hb0X4
+                (by rw [segment_symm]; simpa using hq'A)
+                (by rw [segment_symm]; simpa using hq'B)
+            · exact hpt 3 _
+                (segown 3 (by simpa using hb0X4) (by simpa using hb1X4)
+                  (proj2_mem_segment hq'B))
+                (subA 3 (by decide) (by decide) projqA)
+        · exact hpt 2 _
+            (segown 2 (by simpa using ha0X3) (by simpa using ha1X3)
+              (proj2_mem_segment hq'A))
+            (subB 2 (by decide) (by decide) projqB)
+    · -- `#B' = 3`: slide the triangle down to first contact
+      obtain ⟨b0, b1, b2, hb01, hb02, hb12, rfl⟩ := Finset.card_eq_three.mp hBc
+      rw [Finset.coe_pair, convexHull_pair] at hq'A
+      have hb0m := selB b0 (Finset.mem_insert_self _ _)
+      have hb1m := selB b1 (Finset.mem_insert.mpr
+        (Or.inr (Finset.mem_insert_self _ _)))
+      have hb2m := selB b2 (Finset.mem_insert.mpr
+        (Or.inr (Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self _)))))
+      -- the sliding argument, for a genuine `X₁X₃` segment
+      have slide23 : ∀ {a a' : Euc 3}, a ∈ X1 → a' ∈ X3 →
+          q' ∈ segment ℝ a a' → False := by
+        intro a a' haa haa' hqseg
+        set M := max 0 (max (b0 2) (max (b1 2) (b2 2)) - min (a 2) (a' 2) + 1)
+          with hMdef
+        have hM0 : 0 ≤ M := le_max_left _ _
+        have hMbig : max (b0 2) (max (b1 2) (b2 2)) - M < min (a 2) (a' 2) := by
+          have h := le_max_right (0 : ℝ)
+            (max (b0 2) (max (b1 2) (b2 2)) - min (a 2) (a' 2) + 1)
+          rw [← hMdef] at h; linarith
+        -- at `t = 1` the lowered triangle misses the segment entirely
+        have hdisj : Disjoint (segment ℝ a a')
+            (convexHull ℝ ({b0 - M • z3, b1 - M • z3, b2 - M • z3} :
+              Set (Euc 3))) := by
+          refine Set.disjoint_left.mpr fun v hv1 hv2 ↦ ?_
+          have hlo : min (a 2) (a' 2) ≤ v 2 := by
+            rw [segment_eq_image] at hv1
+            obtain ⟨θ, hθ, rfl⟩ := hv1
+            simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+            rcases le_total (a 2) (a' 2) with h | h
+            · rw [min_eq_left h]
+              have h1 : 0 ≤ θ * a' 2 - θ * a 2 := by
+                rw [← mul_sub]; exact mul_nonneg hθ.1 (sub_nonneg.mpr h)
+              linarith
+            · rw [min_eq_right h]
+              have h1 : 0 ≤ (1 - θ) * a 2 - (1 - θ) * a' 2 := by
+                rw [← mul_sub]; exact mul_nonneg (sub_nonneg.mpr hθ.2)
+                  (sub_nonneg.mpr h)
+              linarith
+          have hup : v 2 ≤ max (b0 2) (max (b1 2) (b2 2)) - M := by
+            have hsub : ({b0 - M • z3, b1 - M • z3, b2 - M • z3} :
+                Set (Euc 3)) ⊆ {x : Euc 3 | EuclideanSpace.projₗ (2 : Fin 3) x ≤
+                  max (b0 2) (max (b1 2) (b2 2)) - M} := by
+              intro x hx
+              simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+              rcases hx with rfl | rfl | rfl
+              · rw [Set.mem_ofPred_eq, PiLp.projₗ_apply, sub_z3_two]
+                exact sub_le_sub_right (le_max_left _ _) _
+              · rw [Set.mem_ofPred_eq, PiLp.projₗ_apply, sub_z3_two]
+                exact sub_le_sub_right
+                  ((le_max_left _ _).trans (le_max_right _ _)) _
+              · rw [Set.mem_ofPred_eq, PiLp.projₗ_apply, sub_z3_two]
+                exact sub_le_sub_right
+                  ((le_max_right _ _).trans (le_max_right _ _)) _
+            have hmem := convexHull_min hsub
+              (convex_halfSpace_le
+                (EuclideanSpace.projₗ (2 : Fin 3)).isLinear _) hv2
+            simpa only [Set.mem_ofPred_eq, PiLp.projₗ_apply] using hmem
+          linarith
+        obtain ⟨t, htI, u, huseg, hflag⟩ := slide_triangle_boundary
+          (y := ![a, a', b0, b1, b2])
+          (z := ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3])
+          ⟨q', by simpa using hqseg, by simpa using hq'B⟩
+          (by simpa using hdisj)
+        -- compute the slid points
+        have hw0 : slidePt ![a, a', b0, b1, b2]
+            ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3] (0 : Fin 5) t = a := by
+          show (1 - t) • a + t • a = a; module
+        have hw1 : slidePt ![a, a', b0, b1, b2]
+            ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3] (1 : Fin 5) t = a' := by
+          show (1 - t) • a' + t • a' = a'; module
+        have hw2 : slidePt ![a, a', b0, b1, b2]
+            ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3] (2 : Fin 5) t =
+            b0 - (t * M) • z3 := by
+          show (1 - t) • b0 + t • (b0 - M • z3) = b0 - (t * M) • z3; module
+        have hw3 : slidePt ![a, a', b0, b1, b2]
+            ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3] (3 : Fin 5) t =
+            b1 - (t * M) • z3 := by
+          show (1 - t) • b1 + t • (b1 - M • z3) = b1 - (t * M) • z3; module
+        have hw4 : slidePt ![a, a', b0, b1, b2]
+            ![a, a', b0 - M • z3, b1 - M • z3, b2 - M • z3] (4 : Fin 5) t =
+            b2 - (t * M) • z3 := by
+          show (1 - t) • b2 + t • (b2 - M • z3) = b2 - (t * M) • z3; module
+        have huseg' : u ∈ segment ℝ a a' := by
+          simpa only [hw0, hw1] using huseg
+        have huA13 : proj2 u ∈ convexHull ℝ
+            (proj2 '' ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3))) :=
+          hull13 huseg' (Finset.mem_union_left _ haa)
+            (Finset.mem_union_right _ haa')
+        have hσb : -(t * M) ≤ 0 := neg_nonpos.mpr (mul_nonneg htI.1 hM0)
+        -- dispatch an edge contact `{x - tM·e₃, y - tM·e₃}` (in `B'`)
+        have edge23 : ∀ {x y : Euc 3}, x ∈ X2 ∪ X4 → y ∈ X2 ∪ X4 →
+            u ∈ segment ℝ (x - (t * M) • z3) (y - (t * M) • z3) → False := by
+          intro x y hxm hym hedge
+          have hpj : proj2 u ∈ segment ℝ (proj2 x) (proj2 y) := by
+            have h := proj2_mem_segment hedge
+            rwa [proj2_sub_z3, proj2_sub_z3] at h
+          rcases Finset.mem_union.mp hxm with hx2 | hx4 <;>
+            rcases Finset.mem_union.mp hym with hy2 | hy4
+          · exact hpt 1 _ (segown 1 (by simpa using hx2) (by simpa using hy2) hpj)
+              (subA 1 (by decide) (by decide) huA13)
+          · exact segseg hσb haa haa' hx2 hy4 (by simpa using huseg')
+              (by simpa only [sub_eq_add_neg, ← neg_smul] using hedge)
+          · exact segseg hσb haa haa' hy2 hx4 (by simpa using huseg')
+              (by rw [segment_symm]
+                  simpa only [sub_eq_add_neg, ← neg_smul] using hedge)
+          · exact hpt 3 _ (segown 3 (by simpa using hx4) (by simpa using hy4) hpj)
+              (subA 3 (by decide) (by decide) huA13)
+        rcases hflag with hed23 | hed34 | hed42 | hend
+        · exact edge23 hb0m hb1m (by simpa only [hw2, hw3] using hed23)
+        · exact edge23 hb1m hb2m (by simpa only [hw3, hw4] using hed34)
+        · exact edge23 hb2m hb0m (by simpa only [hw4, hw2] using hed42)
+        · -- a segment endpoint lies in the lowered triangle
+          obtain rfl | rfl := hend.1
+          · have hmem : a ∈ convexHull ℝ ({b0 - (t * M) • z3, b1 - (t * M) • z3,
+                b2 - (t * M) • z3} : Set (Euc 3)) := by
+              simpa only [hw0, hw2, hw3, hw4] using hend.2
+            have h2 : proj2 a ∈ convexHull ℝ
+                ({proj2 b0, proj2 b1, proj2 b2} : Set (Euc 2)) := by
+              have h := proj2_mem_convexHull hmem
+              rwa [Set.image_insert_eq, Set.image_insert_eq, Set.image_singleton,
+                proj2_sub_z3, proj2_sub_z3, proj2_sub_z3] at h
+            refine hpt 0 _ (hown (by simpa using haa))
+              (subB 0 (by decide) (by decide) (convexHull_mono ?_ h2))
+            rintro w hw
+            simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+            rcases hw with rfl | rfl | rfl
+            · exact ⟨b0, Finset.mem_coe.mpr hb0m, rfl⟩
+            · exact ⟨b1, Finset.mem_coe.mpr hb1m, rfl⟩
+            · exact ⟨b2, Finset.mem_coe.mpr hb2m, rfl⟩
+          · have hmem : a' ∈ convexHull ℝ ({b0 - (t * M) • z3, b1 - (t * M) • z3,
+                b2 - (t * M) • z3} : Set (Euc 3)) := by
+              simpa only [hw1, hw2, hw3, hw4] using hend.2
+            have h2 : proj2 a' ∈ convexHull ℝ
+                ({proj2 b0, proj2 b1, proj2 b2} : Set (Euc 2)) := by
+              have h := proj2_mem_convexHull hmem
+              rwa [Set.image_insert_eq, Set.image_insert_eq, Set.image_singleton,
+                proj2_sub_z3, proj2_sub_z3, proj2_sub_z3] at h
+            refine hpt 2 _ (hown (by simpa using haa'))
+              (subB 2 (by decide) (by decide) (convexHull_mono ?_ h2))
+            rintro w hw
+            simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+            rcases hw with rfl | rfl | rfl
+            · exact ⟨b0, Finset.mem_coe.mpr hb0m, rfl⟩
+            · exact ⟨b1, Finset.mem_coe.mpr hb1m, rfl⟩
+            · exact ⟨b2, Finset.mem_coe.mpr hb2m, rfl⟩
+      rcases Finset.mem_union.mp ha0m with ha0X1 | ha0X3
+      · rcases Finset.mem_union.mp ha1m with ha1X1 | ha1X3
+        · exact hpt 0 _
+            (segown 0 (by simpa using ha0X1) (by simpa using ha1X1)
+              (proj2_mem_segment hq'A))
+            (subB 0 (by decide) (by decide) projqB)
+        · exact slide23 ha0X1 ha1X3 hq'A
+      · rcases Finset.mem_union.mp ha1m with ha1X1 | ha1X3
+        · exact slide23 ha1X1 ha0X3 (by rwa [segment_symm])
+        · exact hpt 2 _
+            (segown 2 (by simpa using ha0X3) (by simpa using ha1X3)
+              (proj2_mem_segment hq'A))
+            (subB 2 (by decide) (by decide) projqB)
+  · -- `#A' = 3`: symmetric sliding (the `13`-triangle moves up)
+    obtain ⟨a0, a1, a2, ha01, ha02, ha12, rfl⟩ := Finset.card_eq_three.mp hAc
+    have ha0m := selA a0 (Finset.mem_insert_self _ _)
+    have ha1m := selA a1 (Finset.mem_insert.mpr
+      (Or.inr (Finset.mem_insert_self _ _)))
+    have ha2m := selA a2 (Finset.mem_insert.mpr
+      (Or.inr (Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self _)))))
+    interval_cases hBc : B'.card
+    · -- `#B' = 2`
+      obtain ⟨b0, b1, hb01, rfl⟩ := Finset.card_eq_two.mp hBc
+      rw [Finset.coe_pair, convexHull_pair] at hq'B
+      have hb0m := selB b0 (Finset.mem_insert_self _ _)
+      have hb1m := selB b1
+        (Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self _)))
+      -- the sliding argument, for a genuine `X₂X₄` segment
+      have slide32 : ∀ {b b' : Euc 3}, b ∈ X2 → b' ∈ X4 →
+          q' ∈ segment ℝ b b' → False := by
+        intro b b' hbb hbb' hqseg
+        set M := max 0 (max (b 2) (b' 2) - min (a0 2) (min (a1 2) (a2 2)) + 1)
+          with hMdef
+        have hM0 : 0 ≤ M := le_max_left _ _
+        have hMbig : max (b 2) (b' 2) <
+            min (a0 2) (min (a1 2) (a2 2)) + M := by
+          have h := le_max_right (0 : ℝ)
+            (max (b 2) (b' 2) - min (a0 2) (min (a1 2) (a2 2)) + 1)
+          rw [← hMdef] at h; linarith
+        -- at `t = 1` the raised triangle misses the segment entirely
+        have hdisj : Disjoint (segment ℝ b b')
+            (convexHull ℝ ({a0 + M • z3, a1 + M • z3, a2 + M • z3} :
+              Set (Euc 3))) := by
+          refine Set.disjoint_left.mpr fun v hv1 hv2 ↦ ?_
+          have hup : v 2 ≤ max (b 2) (b' 2) := by
+            rw [segment_eq_image] at hv1
+            obtain ⟨θ, hθ, rfl⟩ := hv1
+            simp only [PiLp.add_apply, PiLp.smul_apply, smul_eq_mul]
+            rcases le_total (b 2) (b' 2) with h | h
+            · rw [max_eq_right h]
+              have h1 : 0 ≤ (1 - θ) * b' 2 - (1 - θ) * b 2 := by
+                rw [← mul_sub]
+                exact mul_nonneg (sub_nonneg.mpr hθ.2) (sub_nonneg.mpr h)
+              linarith
+            · rw [max_eq_left h]
+              have h1 : 0 ≤ θ * b 2 - θ * b' 2 := by
+                rw [← mul_sub]; exact mul_nonneg hθ.1 (sub_nonneg.mpr h)
+              linarith
+          have hlo : min (a0 2) (min (a1 2) (a2 2)) + M ≤ v 2 := by
+            have hsub : ({a0 + M • z3, a1 + M • z3, a2 + M • z3} :
+                Set (Euc 3)) ⊆ {x : Euc 3 |
+                  min (a0 2) (min (a1 2) (a2 2)) + M ≤
+                    EuclideanSpace.projₗ (2 : Fin 3) x} := by
+              intro x hx
+              simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hx
+              rcases hx with rfl | rfl | rfl
+              · show min (a0 2) (min (a1 2) (a2 2)) + M ≤
+                    EuclideanSpace.projₗ (2 : Fin 3) (a0 + M • z3)
+                rw [PiLp.projₗ_apply, add_z3_two]
+                linarith [min_le_left (a0 2) (min (a1 2) (a2 2))]
+              · show min (a0 2) (min (a1 2) (a2 2)) + M ≤
+                    EuclideanSpace.projₗ (2 : Fin 3) (a1 + M • z3)
+                rw [PiLp.projₗ_apply, add_z3_two]
+                linarith [(min_le_right (a0 2) (min (a1 2) (a2 2))).trans
+                  (min_le_left (a1 2) (a2 2))]
+              · show min (a0 2) (min (a1 2) (a2 2)) + M ≤
+                    EuclideanSpace.projₗ (2 : Fin 3) (a2 + M • z3)
+                rw [PiLp.projₗ_apply, add_z3_two]
+                linarith [(min_le_right (a0 2) (min (a1 2) (a2 2))).trans
+                  (min_le_right (a1 2) (a2 2))]
+            have hmem := convexHull_min hsub
+              (convex_halfSpace_ge
+                (EuclideanSpace.projₗ (2 : Fin 3)).isLinear _) hv2
+            simpa only [Set.mem_ofPred_eq, PiLp.projₗ_apply] using hmem
+          linarith
+        obtain ⟨t, htI, u, huseg, hflag⟩ := slide_triangle_boundary
+          (y := ![b, b', a0, a1, a2])
+          (z := ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3])
+          ⟨q', by simpa using hqseg, by simpa using hq'A⟩
+          (by simpa using hdisj)
+        -- compute the slid points
+        have hw0 : slidePt ![b, b', a0, a1, a2]
+            ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3] (0 : Fin 5) t = b := by
+          show (1 - t) • b + t • b = b; module
+        have hw1 : slidePt ![b, b', a0, a1, a2]
+            ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3] (1 : Fin 5) t = b' := by
+          show (1 - t) • b' + t • b' = b'; module
+        have hw2 : slidePt ![b, b', a0, a1, a2]
+            ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3] (2 : Fin 5) t =
+            a0 + (t * M) • z3 := by
+          show (1 - t) • a0 + t • (a0 + M • z3) = a0 + (t * M) • z3; module
+        have hw3 : slidePt ![b, b', a0, a1, a2]
+            ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3] (3 : Fin 5) t =
+            a1 + (t * M) • z3 := by
+          show (1 - t) • a1 + t • (a1 + M • z3) = a1 + (t * M) • z3; module
+        have hw4 : slidePt ![b, b', a0, a1, a2]
+            ![b, b', a0 + M • z3, a1 + M • z3, a2 + M • z3] (4 : Fin 5) t =
+            a2 + (t * M) • z3 := by
+          show (1 - t) • a2 + t • (a2 + M • z3) = a2 + (t * M) • z3; module
+        have huseg' : u ∈ segment ℝ b b' := by
+          simpa only [hw0, hw1] using huseg
+        have huB24 : proj2 u ∈ convexHull ℝ
+            (proj2 '' ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) :=
+          hull24 huseg' (Finset.mem_union_left _ hbb)
+            (Finset.mem_union_right _ hbb')
+        have hσa : 0 ≤ t * M := mul_nonneg htI.1 hM0
+        -- dispatch an edge contact `{x + tM·e₃, y + tM·e₃}` (in `A'`)
+        have edge13 : ∀ {x y : Euc 3}, x ∈ X1 ∪ X3 → y ∈ X1 ∪ X3 →
+            u ∈ segment ℝ (x + (t * M) • z3) (y + (t * M) • z3) → False := by
+          intro x y hxm hym hedge
+          have hpj : proj2 u ∈ segment ℝ (proj2 x) (proj2 y) := by
+            have h := proj2_mem_segment hedge
+            rwa [proj2_add_z3, proj2_add_z3] at h
+          rcases Finset.mem_union.mp hxm with hx1 | hx3 <;>
+            rcases Finset.mem_union.mp hym with hy1 | hy3
+          · exact hpt 0 _ (segown 0 (by simpa using hx1) (by simpa using hy1) hpj)
+              (subB 0 (by decide) (by decide) huB24)
+          · exact segseg hσa hx1 hy3 hbb hbb' (by simpa using hedge)
+              (by simpa using huseg')
+          · exact segseg hσa hy1 hx3 hbb hbb'
+              (by rw [segment_symm]; simpa using hedge)
+              (by simpa using huseg')
+          · exact hpt 2 _ (segown 2 (by simpa using hx3) (by simpa using hy3) hpj)
+              (subB 2 (by decide) (by decide) huB24)
+        rcases hflag with hed01 | hed12 | hed20 | hend
+        · exact edge13 ha0m ha1m (by simpa only [hw2, hw3] using hed01)
+        · exact edge13 ha1m ha2m (by simpa only [hw3, hw4] using hed12)
+        · exact edge13 ha2m ha0m (by simpa only [hw4, hw2] using hed20)
+        · -- a `B'`-segment endpoint lies in the raised triangle
+          obtain rfl | rfl := hend.1
+          · have hmem : b ∈ convexHull ℝ ({a0 + (t * M) • z3, a1 + (t * M) • z3,
+                a2 + (t * M) • z3} : Set (Euc 3)) := by
+              simpa only [hw0, hw2, hw3, hw4] using hend.2
+            have h2 : proj2 b ∈ convexHull ℝ
+                ({proj2 a0, proj2 a1, proj2 a2} : Set (Euc 2)) := by
+              have h := proj2_mem_convexHull hmem
+              rwa [Set.image_insert_eq, Set.image_insert_eq, Set.image_singleton,
+                proj2_add_z3, proj2_add_z3, proj2_add_z3] at h
+            refine hpt 1 _ (hown (by simpa using hbb))
+              (subA 1 (by decide) (by decide) (convexHull_mono ?_ h2))
+            rintro w hw
+            simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+            rcases hw with rfl | rfl | rfl
+            · exact ⟨a0, Finset.mem_coe.mpr ha0m, rfl⟩
+            · exact ⟨a1, Finset.mem_coe.mpr ha1m, rfl⟩
+            · exact ⟨a2, Finset.mem_coe.mpr ha2m, rfl⟩
+          · have hmem : b' ∈ convexHull ℝ ({a0 + (t * M) • z3, a1 + (t * M) • z3,
+                a2 + (t * M) • z3} : Set (Euc 3)) := by
+              simpa only [hw1, hw2, hw3, hw4] using hend.2
+            have h2 : proj2 b' ∈ convexHull ℝ
+                ({proj2 a0, proj2 a1, proj2 a2} : Set (Euc 2)) := by
+              have h := proj2_mem_convexHull hmem
+              rwa [Set.image_insert_eq, Set.image_insert_eq, Set.image_singleton,
+                proj2_add_z3, proj2_add_z3, proj2_add_z3] at h
+            refine hpt 3 _ (hown (by simpa using hbb'))
+              (subA 3 (by decide) (by decide) (convexHull_mono ?_ h2))
+            rintro w hw
+            simp only [Set.mem_insert_iff, Set.mem_singleton_iff] at hw
+            rcases hw with rfl | rfl | rfl
+            · exact ⟨a0, Finset.mem_coe.mpr ha0m, rfl⟩
+            · exact ⟨a1, Finset.mem_coe.mpr ha1m, rfl⟩
+            · exact ⟨a2, Finset.mem_coe.mpr ha2m, rfl⟩
+      rcases Finset.mem_union.mp hb0m with hb0X2 | hb0X4
+      · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+        · exact hpt 1 _
+            (segown 1 (by simpa using hb0X2) (by simpa using hb1X2)
+              (proj2_mem_segment hq'B))
+            (subA 1 (by decide) (by decide) projqA)
+        · exact slide32 hb0X2 hb1X4 hq'B
+      · rcases Finset.mem_union.mp hb1m with hb1X2 | hb1X4
+        · exact slide32 hb1X2 hb0X4 (by rwa [segment_symm])
+        · exact hpt 3 _
+            (segown 3 (by simpa using hb0X4) (by simpa using hb1X4)
+              (proj2_mem_segment hq'B))
+            (subA 3 (by decide) (by decide) projqA)
+    · -- `#B' = 3`: `3 + 3 > 5`, impossible
+      omega
+
 /-- **Proposition 2.3.**  If every segment `x₁x₃` (`x₁ ∈ X₁, x₃ ∈ X₃`) lies
 strictly above every segment `x₂x₄` (`x₂ ∈ X₂, x₄ ∈ X₄`) — in particular their
 projections meet at interior points of both — then
@@ -1275,6 +2249,15 @@ theorem prop_2_3 {X1 X2 X3 X4 : Finset (Euc 3)}
     Disjoint (convexHull ℝ ((X1 ∪ X3 : Finset (Euc 3)) : Set (Euc 3)))
              (convexHull ℝ ((X2 ∪ X4 : Finset (Euc 3)) : Set (Euc 3))) := by
   classical
+  -- The nonemptiness, pairwise-disjointness and general-position hypotheses
+  -- are what make the statement well-posed (they rule out the vacuous and
+  -- degenerate counterexamples); the separation argument itself only needs
+  -- the projected convex-position and `AboveSeg` hypotheses.
+  have _ : X1.Nonempty ∧ X2.Nonempty ∧ X3.Nonempty ∧ X4.Nonempty ∧
+      Disjoint X1 X2 ∧ Disjoint X1 X3 ∧ Disjoint X1 X4 ∧ Disjoint X2 X3 ∧
+      Disjoint X2 X4 ∧ Disjoint X3 X4 ∧
+      InGeneralPosition ((X1 ∪ X2 ∪ X3 ∪ X4 : Finset (Euc 3)) : Set (Euc 3)) :=
+    ⟨hX1, hX2, hX3, hX4, hd, hd', hd'', hd''', hd'''', hd''''', hgp⟩
   /- **Mathematical argument.**  Suppose `q` lies in the intersection.  The
   Kirchberger theorem (`kirchberger`, `d = 3`) yields `A' ⊆ X1∪X3` and
   `B' ⊆ X2∪X4` with `#A' + #B' ≤ 5` and `q ∈ conv A' ∩ conv B'`.  Split on
@@ -1309,7 +2292,7 @@ theorem prop_2_3 {X1 X2 X3 X4 : Finset (Euc 3)}
   them was genuinely false (empty `X₃` makes `habove` vacuous, and endpoint
   crossings let an upper segment pierce the lower hull at a projected
   vertex). -/
-  sorry
+  exact conv13_conv24_disjoint hconv habove
 
 /-- **Proposition 2.7.**  For a 2-separated collection `X₁,…,X_k` in convex
 position and representatives `xᵢ ∈ Xᵢ`, any plane `H = {f = c}` avoiding all

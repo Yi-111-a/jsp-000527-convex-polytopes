@@ -1,4 +1,5 @@
 import JSPProblem.CupsCaps
+import JSPProblem.PlanarDichotomy
 import JSPProblem.Projection
 
 /-!
@@ -33,10 +34,13 @@ the substantive one — it additionally needs, beyond the paper's machinery
 lifting along `π_e`), a way to apply `cupsCaps` to `π_e X'`, which need not be
 in `InGeneralPosition` (collinear projected triples on lines avoiding
 `conv (π_e P)` are possible even for `X` in general position).  See the
-comment at the `sorry` for a fuller account of the remaining gaps.
+comments at the unproved lemmas `edge_separates` and `planar_dichotomy`
+for a fuller account of the remaining gaps.
 -/
 
 noncomputable section
+
+open scoped InnerProductSpace
 
 /-- `[u,v]` is an edge of the polytope `conv P` (for `u v ∈ P`, `u ≠ v`):
 some linear functional is minimized on `P` exactly along `segment u v`. -/
@@ -325,7 +329,7 @@ private theorem exists_antichain_or_chain_mul (s : Finset α) (r : α → α →
 
 /-- **Iterated Mirsky extraction.**  Suppose every pair of distinct points of
 `X` is `rᵢ`-incomparable for some `i ∈ E`.  If `|X| > M ^ |E|`, some `rᵢ`
-admits an antichain of size `> M`.  This is the paper's argument: if no order
+has an antichain of size `> M`.  This is the paper's argument: if no order
 had a large antichain, then for each `i`, `X` would split into `≤ M`
 `rᵢ`-chains (here via the chain bound `|X| ≤ |chain|·M` iterated), and
 superimposing the partitions would put two points of `X` in a common cell —
@@ -726,72 +730,995 @@ theorem dirLe_incomp {P : Finset (Euc 3)} {d : Euc 3}
     -- `y = x + t • d`, hence `x - y = (-t) • d`.
     exact hpar (-t) (by rw [hwx, neg_smul]; abel)
 
-/-! ### The three remaining geometric inputs
+/-! ### The remaining geometric inputs
 
-The next three lemmas are the geometric heart of the paper's proof; each is
-stated as a standalone result and remains `sorry`-free in statement but
-`sorry` in proof, with the gap documented. -/
+The next lemmas are the geometric heart of the paper's proof.
+`edge_separates` (now with a full-dimensionality hypothesis, which the
+literal statement needs) is proved below; `planar_dichotomy` remains open.
+-/
+
+/-- **Slope-extremal endpoints at a strictly exposed vertex.**  Suppose
+`u ∈ T` is a strictly `φ`-exposed point (`φ (w - u) > 0` for all `w ≠ u` in
+`T`), all differences `w - u` lie in a two-dimensional submodule `K` bounded
+above by `vectorSpan ℝ ↑T`, and `ψ` is not proportional to `φ` on `K`.  Then
+the minimal and maximal slopes `ψ (w - u) / φ (w - u)` over `w ∈ T ∖ {u}`
+are attained at points `b₁, b₂ ∈ T`, endpoints of the two edges of `conv T`
+incident to `u`: the `l₁`-level set of `ψ` against `φ` on `T` is contained
+in `segment ℝ u b₁`, the `l₂`-level set is contained in `segment ℝ u b₂`,
+and the directions `b₁ - u`, `b₂ - u` are not parallel. -/
+private theorem two_edges_at_strict_vertex
+    {E : Type*} [AddCommGroup E] [Module ℝ E]
+    {T : Finset E} {u : E} (hu : u ∈ T)
+    {φ ψ : E →ₗ[ℝ] ℝ}
+    (hφ : ∀ w ∈ T, w ≠ u → 0 < φ (w - u))
+    (K : Submodule ℝ E) (hKu : ∀ w ∈ T, w - u ∈ K)
+    (hKT : K ≤ vectorSpan ℝ (T : Set E))
+    (hK2 : Module.finrank ℝ ↥K = 2)
+    (hψφ : ∀ l : ℝ, ∃ v : E, v ∈ K ∧ ψ v ≠ l * φ v) :
+    ∃ b₁ b₂ : E, ∃ l₁ l₂ : ℝ, l₁ < l₂ ∧
+      b₁ ∈ T ∧ b₂ ∈ T ∧ b₁ ≠ u ∧ b₂ ≠ u ∧
+      (∀ w ∈ T, l₁ * φ (w - u) ≤ ψ (w - u)) ∧
+      (∀ w ∈ T, ψ (w - u) ≤ l₂ * φ (w - u)) ∧
+      (∀ w ∈ T, l₁ * φ (w - u) = ψ (w - u) → w ∈ segment ℝ u b₁) ∧
+      (∀ w ∈ T, ψ (w - u) = l₂ * φ (w - u) → w ∈ segment ℝ u b₂) ∧
+      l₁ * φ (b₁ - u) = ψ (b₁ - u) ∧ ψ (b₂ - u) = l₂ * φ (b₂ - u) ∧
+      ∀ v : E, b₁ - u ∉ ℝ ∙ v ∨ b₂ - u ∉ ℝ ∙ v := by
+  classical
+  have hKfd : FiniteDimensional ℝ ↥K := Module.finite_of_finrank_pos (by omega)
+  have hT'ne : (T.erase u).Nonempty := by
+    rcases (T.erase u).eq_empty_or_nonempty with h | h
+    · exfalso
+      have hsub : (↑T : Set E) ⊆ {u} := by
+        intro w hw
+        by_contra hwu
+        exact Finset.notMem_empty _
+          (h ▸ Finset.mem_erase.2
+            ⟨fun e ↦ hwu (Set.mem_singleton_iff.2 e), Finset.mem_coe.1 hw⟩)
+      have hvs : vectorSpan ℝ (↑T : Set E) ≤ ⊥ :=
+        (vectorSpan_mono ℝ hsub).trans (le_of_eq (vectorSpan_singleton ℝ u))
+      have hK0 : K = ⊥ := le_bot_iff.1 (hKT.trans hvs)
+      rw [hK0, finrank_bot] at hK2
+      omega
+    · exact h
+  obtain ⟨c₁, hc₁, hc₁min⟩ :=
+    (T.erase u).exists_min_image (fun w ↦ ψ (w - u) / φ (w - u)) hT'ne
+  obtain ⟨c₂, hc₂, hc₂max⟩ :=
+    (T.erase u).exists_max_image (fun w ↦ ψ (w - u) / φ (w - u)) hT'ne
+  have hc₁T : c₁ ∈ T := (Finset.mem_erase.1 hc₁).2
+  have hc₁u : c₁ ≠ u := (Finset.mem_erase.1 hc₁).1
+  have hc₂T : c₂ ∈ T := (Finset.mem_erase.1 hc₂).2
+  have hc₂u : c₂ ≠ u := (Finset.mem_erase.1 hc₂).1
+  have hφc₂ : 0 < φ (c₂ - u) := hφ c₂ hc₂T hc₂u
+  set L₁ : ℝ := ψ (c₁ - u) / φ (c₁ - u) with hL₁def
+  set L₂ : ℝ := ψ (c₂ - u) / φ (c₂ - u) with hL₂def
+  have hlt : L₁ < L₂ := by
+    by_contra hle
+    push Not at hle
+    have hconst : ∀ w ∈ T.erase u, ψ (w - u) / φ (w - u) = L₁ := fun w hw ↦
+      le_antisymm (le_trans (hc₂max w hw) hle) (hc₁min w hw)
+    have hker : ∀ w ∈ T, (ψ - L₁ • φ) (w - u) = 0 := by
+      intro w hw
+      by_cases hwu : w = u
+      · rw [hwu, sub_self, map_zero]
+      have hw' : w ∈ T.erase u := Finset.mem_erase.2 ⟨hwu, hw⟩
+      have hφw : 0 < φ (w - u) := hφ w hw hwu
+      have hψeq : ψ (w - u) = L₁ * φ (w - u) :=
+        (div_eq_iff hφw.ne').1 (hconst w hw')
+      rw [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul, sub_eq_zero]
+      exact hψeq
+    have hKle : K ≤ LinearMap.ker (ψ - L₁ • φ) := by
+      refine hKT.trans ?_
+      rw [vectorSpan_def]
+      apply Submodule.span_le.2
+      intro x hx
+      obtain ⟨p, hp, q, hq, hpq⟩ := Set.mem_vsub.1 hx
+      rw [← hpq, vsub_eq_sub, SetLike.mem_coe, LinearMap.mem_ker]
+      have e1 := hker p (Finset.mem_coe.1 hp)
+      have e2 := hker q (Finset.mem_coe.1 hq)
+      have hsplit : p - q = (p - u) - (q - u) := by abel
+      rw [hsplit, map_sub, e1, e2, sub_self]
+    obtain ⟨v, hvK, hne⟩ := hψφ L₁
+    have hv0 : (ψ - L₁ • φ) v = 0 := LinearMap.mem_ker.1 (hKle hvK)
+    rw [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at hv0
+    exact hne (sub_eq_zero.1 hv0)
+  -- For a slope value `L` attained on `T ∖ {u}`, the `φ`-maximal point `b`
+  -- of the `L`-level set satisfies `ker ((ψ - L•φ) | K) = ℝ ∙ ⟨b - u⟩`, so
+  -- every `L`-level point of `T` lies in `segment ℝ u b`.
+  have seg_step : ∀ L : ℝ, (∃ c ∈ T.erase u, ψ (c - u) / φ (c - u) = L) →
+      ∃ b : E, b ∈ T ∧ b ≠ u ∧ ψ (b - u) = L * φ (b - u) ∧
+        (∀ w ∈ T, ψ (w - u) = L * φ (w - u) → w ∈ segment ℝ u b) := by
+    intro L ⟨c, hc, hcL⟩
+    set SL := (T.erase u).filter (fun w ↦ ψ (w - u) / φ (w - u) = L) with hSL
+    have hSLne : SL.Nonempty := ⟨c, Finset.mem_filter.2 ⟨hc, hcL⟩⟩
+    obtain ⟨b, hbS, hbmax⟩ := SL.exists_max_image (fun w ↦ φ (w - u)) hSLne
+    have hbT' : b ∈ T.erase u := (Finset.mem_filter.1 hbS).1
+    have hbsl : ψ (b - u) / φ (b - u) = L := (Finset.mem_filter.1 hbS).2
+    have hbT : b ∈ T := (Finset.mem_erase.1 hbT').2
+    have hbu : b ≠ u := (Finset.mem_erase.1 hbT').1
+    have hφb : 0 < φ (b - u) := hφ b hbT hbu
+    have hψb : ψ (b - u) = L * φ (b - u) := (div_eq_iff hφb.ne').1 hbsl
+    refine ⟨b, hbT, hbu, hψb, ?_⟩
+    intro w hw heq
+    by_cases hwu : w = u
+    · rw [hwu]; exact left_mem_segment ℝ u b
+    have hw' : w ∈ T.erase u := Finset.mem_erase.2 ⟨hwu, hw⟩
+    have hφw : 0 < φ (w - u) := hφ w hw hwu
+    have hwS : w ∈ SL := Finset.mem_filter.2 ⟨hw', (div_eq_iff hφw.ne').2 heq⟩
+    set lL : E →ₗ[ℝ] ℝ := ψ - L • φ with hlL
+    have hWKeq : LinearMap.ker (lL.domRestrict K) =
+        ℝ ∙ (⟨b - u, hKu b hbT⟩ : ↥K) := by
+      have hb0 : (⟨b - u, hKu b hbT⟩ : ↥K) ≠ 0 := by
+        intro h0
+        apply hbu
+        have h1 := congrArg Subtype.val h0
+        simp only [Submodule.coe_zero] at h1
+        exact sub_eq_zero.1 h1
+      have hbker : (⟨b - u, hKu b hbT⟩ : ↥K) ∈
+          LinearMap.ker (lL.domRestrict K) := by
+        rw [LinearMap.mem_ker]
+        show lL (b - u) = 0
+        rw [hlL]
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+        rw [hψb, sub_self]
+      have hker1 : Module.finrank ℝ ↥(LinearMap.ker (lL.domRestrict K)) = 1 := by
+        have hfrk := LinearMap.finrank_range_add_finrank_ker (lL.domRestrict K)
+        have hran : LinearMap.range (lL.domRestrict K) = ⊤ := by
+          obtain ⟨v, hvK, hne⟩ := hψφ L
+          rw [eq_top_iff]
+          intro x _
+          have hne0 : lL.domRestrict K ⟨v, hvK⟩ ≠ 0 := by
+            show lL v ≠ 0
+            rw [hlL]
+            simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+            exact sub_ne_zero.2 hne
+          refine LinearMap.mem_range.2
+            ⟨(x / lL.domRestrict K ⟨v, hvK⟩) • ⟨v, hvK⟩, ?_⟩
+          rw [LinearMap.map_smul, smul_eq_mul, div_mul_cancel₀ _ hne0]
+        rw [hK2, hran, finrank_top, Module.finrank_self] at hfrk
+        omega
+      haveI : FiniteDimensional ℝ ↥(LinearMap.ker (lL.domRestrict K)) :=
+        Module.finite_of_finrank_pos (by rw [hker1]; norm_num)
+      exact (Submodule.eq_of_le_of_finrank_eq
+        ((Submodule.span_singleton_le_iff_mem _ _).2 hbker) (by
+          rw [finrank_span_singleton hb0, hker1])).symm
+    have hkerw : (⟨w - u, hKu w hw⟩ : ↥K) ∈
+        LinearMap.ker (lL.domRestrict K) := by
+      rw [LinearMap.mem_ker]
+      show lL (w - u) = 0
+      rw [hlL]
+      simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul,
+        sub_eq_zero]
+      exact heq
+    rw [hWKeq] at hkerw
+    obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 hkerw
+    have htu : t • (b - u) = w - u := by
+      have h1 := congrArg Subtype.val ht
+      simpa using h1
+    have hφeq : φ (w - u) = t * φ (b - u) := by
+      rw [← htu, map_smul, smul_eq_mul]
+    have ht0 : 0 ≤ t := by
+      by_contra ht0
+      push Not at ht0
+      rw [hφeq] at hφw
+      linarith [mul_neg_of_neg_of_pos ht0 hφb]
+    have ht1 : t ≤ 1 := by
+      have hφle : φ (w - u) ≤ φ (b - u) := hbmax w hwS
+      rw [hφeq] at hφle
+      have h' : t * φ (b - u) ≤ 1 * φ (b - u) := by rwa [one_mul]
+      exact le_of_mul_le_mul_right h' hφb
+    rw [segment_eq_image']
+    refine ⟨t, ⟨ht0, ht1⟩, ?_⟩
+    show u + t • (b - u) = w
+    rw [htu]
+    abel
+  obtain ⟨b₁, hb₁T, hb₁u, hψb₁, hseg₁⟩ := seg_step L₁ ⟨c₁, hc₁, hL₁def.symm⟩
+  obtain ⟨b₂, hb₂T, hb₂u, hψb₂, hseg₂⟩ := seg_step L₂ ⟨c₂, hc₂, hL₂def.symm⟩
+  have hbound₁ : ∀ w ∈ T, L₁ * φ (w - u) ≤ ψ (w - u) := by
+    intro w hw
+    by_cases hwu : w = u
+    · subst hwu; simp
+    have hw' : w ∈ T.erase u := Finset.mem_erase.2 ⟨hwu, hw⟩
+    have hφw : 0 < φ (w - u) := hφ w hw hwu
+    have hle := hc₁min w hw'
+    rw [le_div_iff₀ hφw] at hle
+    exact hle
+  have hbound₂ : ∀ w ∈ T, ψ (w - u) ≤ L₂ * φ (w - u) := by
+    intro w hw
+    by_cases hwu : w = u
+    · subst hwu; simp
+    have hw' : w ∈ T.erase u := Finset.mem_erase.2 ⟨hwu, hw⟩
+    have hφw : 0 < φ (w - u) := hφ w hw hwu
+    have hle := hc₂max w hw'
+    rw [div_le_iff₀ hφw] at hle
+    exact hle
+  have hindep : ∀ v : E, b₁ - u ∉ ℝ ∙ v ∨ b₂ - u ∉ ℝ ∙ v := by
+    intro v
+    by_contra hcon
+    push Not at hcon
+    obtain ⟨h1, h2⟩ := hcon
+    have hb₁0 : b₁ - u ≠ 0 := sub_ne_zero.2 hb₁u
+    have hb₂0 : b₂ - u ≠ 0 := sub_ne_zero.2 hb₂u
+    have hv0 : v ≠ 0 := by
+      rintro rfl
+      obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 h1
+      rw [smul_zero] at ht
+      exact hb₁0 ht.symm
+    have hsp : ∀ {w : E}, w - u ∈ ℝ ∙ v → w - u ≠ 0 →
+        ℝ ∙ (w - u) = ℝ ∙ v := fun {w} hwm hw0 ↦
+      Submodule.eq_of_le_of_finrank_eq
+        ((Submodule.span_singleton_le_iff_mem _ _).2 hwm)
+        (by rw [finrank_span_singleton hw0, finrank_span_singleton hv0])
+    have hsp₁ : ℝ ∙ (b₁ - u) = ℝ ∙ v := hsp h1 hb₁0
+    have hsp₂ : ℝ ∙ (b₂ - u) = ℝ ∙ v := hsp h2 hb₂0
+    have hb₂in : b₂ - u ∈ ℝ ∙ (b₁ - u) :=
+      hsp₁.symm ▸ (hsp₂ ▸ Submodule.mem_span_singleton_self (b₂ - u))
+    obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 hb₂in
+    have hψb₂L₁ : ψ (b₂ - u) = L₁ * φ (b₂ - u) := by
+      have e : (ψ - L₁ • φ) (b₂ - u) = t * ((ψ - L₁ • φ) (b₁ - u)) := by
+        rw [← ht, map_smul, smul_eq_mul]
+      have e1 : (ψ - L₁ • φ) (b₁ - u) = 0 := by
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+        exact sub_eq_zero.2 hψb₁
+      rw [e1, mul_zero] at e
+      simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at e
+      exact sub_eq_zero.1 e
+    have hφb₂ : 0 < φ (b₂ - u) := hφ b₂ hb₂T hb₂u
+    have heq : L₂ * φ (b₂ - u) = L₁ * φ (b₂ - u) := hψb₂.symm.trans hψb₂L₁
+    have hL : L₂ = L₁ := mul_right_cancel₀ hφb₂.ne' heq
+    rw [hL] at hlt
+    exact (lt_irrefl _ hlt).elim
+  exact ⟨b₁, b₂, L₁, L₂, hlt, hb₁T, hb₂T, hb₁u, hb₂u, hbound₁, hbound₂,
+    (fun w hw h ↦ hseg₁ w hw h.symm), (fun w hw h ↦ hseg₂ w hw h),
+    hψb₁.symm, hψb₂, hindep⟩
+
+/-- **Planar visible-edge lemma.**  For a finite set `Q` affinely spanning a
+two-dimensional real inner product space `E` and a point `z` outside
+`convexHull ℝ Q`, there is a functional `g` and distinct `a' b' ∈ Q` such
+that the `g`-maximal level set of `Q` is contained in `segment ℝ a' b'`
+(with `g a' = g b'`), and `g a' < g z`: the edge `[a', b']` of `conv Q` is
+visible from `z`.  Proof: strict separation `g₀` of `z` from `conv Q` has a
+max-face `S` on `Q`; if `S = {a₀}` is a vertex the two incident edges come
+from `two_edges_at_strict_vertex` and at least one stays visible; if `S`
+contains two points it is already an edge. -/
+private theorem exists_visible_functional
+    {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+    (hE : Module.finrank ℝ E = 2)
+    {Q : Finset E} (hQ : affineSpan ℝ (Q : Set E) = ⊤)
+    {z : E} (hz : z ∉ convexHull ℝ (Q : Set E)) :
+    ∃ g : E →ₗ[ℝ] ℝ, ∃ a' b' : E,
+      a' ∈ Q ∧ b' ∈ Q ∧ a' ≠ b' ∧ g a' = g b' ∧
+      (∀ q ∈ Q, g q ≤ g a') ∧
+      (∀ q ∈ Q, g q = g a' → q ∈ segment ℝ a' b') ∧
+      g a' < g z := by
+  classical
+  obtain ⟨f₀, c₀, hf₀lt, hc₀lt⟩ := geometric_hahn_banach_closed_point
+    (convex_convexHull ℝ (Q : Set E)) (Q.finite_toSet.isClosed_convexHull ℝ) hz
+  set g₀ : E →ₗ[ℝ] ℝ := f₀.toLinearMap with hg₀def
+  have hQne : Q.Nonempty := by
+    obtain ⟨a, ha⟩ :=
+      AffineSubspace.nonempty_of_affineSpan_eq_top ℝ _ _ hQ
+    exact ⟨a, Finset.mem_coe.1 ha⟩
+  obtain ⟨a₀, ha₀, ha₀max⟩ := Q.exists_max_image (fun q ↦ g₀ q) hQne
+  have ha₀lt : g₀ a₀ < c₀ := by
+    show f₀ a₀ < c₀
+    exact hf₀lt a₀ (subset_convexHull ℝ _ (Finset.mem_coe.2 ha₀))
+  have hg₀z : c₀ < g₀ z := by
+    show c₀ < f₀ z
+    exact hc₀lt
+  have hg₀ne : g₀ ≠ 0 := by
+    intro h0
+    rw [h0] at hg₀z ha₀lt
+    simp only [LinearMap.zero_apply] at hg₀z ha₀lt
+    linarith [hg₀z, ha₀lt]
+  -- choose a functional `ψ` not proportional to `g₀`
+  have hdual2 : Module.finrank ℝ (E →ₗ[ℝ] ℝ) = 2 := by
+    rw [Module.finrank_linearMap_self, hE]
+  have hg₀sp : (ℝ ∙ g₀ : Submodule ℝ (E →ₗ[ℝ] ℝ)) ≠ ⊤ := by
+    intro htop
+    have hfr := congrArg (fun U : Submodule ℝ (E →ₗ[ℝ] ℝ) ↦
+      Module.finrank ℝ ↥U) htop
+    rw [finrank_span_singleton hg₀ne, finrank_top, hdual2] at hfr
+    omega
+  obtain ⟨ψ, hψ⟩ := exists_avoid_submodules
+    ({ℝ ∙ g₀} : Finset (Submodule ℝ (E →ₗ[ℝ] ℝ))) (by
+      intro U hU
+      rw [Finset.mem_singleton] at hU
+      rwa [hU])
+  have hψg : ψ ∉ ℝ ∙ g₀ := hψ _ (Finset.mem_singleton_self _)
+  -- `g₀`-max-face `S` of `Q`
+  set S := Q.filter (fun q ↦ g₀ q = g₀ a₀) with hSdef
+  have hSne : S.Nonempty := ⟨a₀, Finset.mem_filter.2 ⟨ha₀, rfl⟩⟩
+  -- `ker g₀` is a line
+  have hk1 : Module.finrank ℝ ↥(LinearMap.ker g₀) = 1 := by
+    have hfrk := LinearMap.finrank_range_add_finrank_ker g₀
+    have hran : LinearMap.range g₀ = ⊤ := by
+      rw [eq_top_iff]
+      intro x _
+      obtain ⟨v, hv⟩ : ∃ v, g₀ v ≠ 0 := by
+        by_contra hc
+        push Not at hc
+        exact hg₀ne (LinearMap.ext hc)
+      refine LinearMap.mem_range.2 ⟨(x / g₀ v) • v, ?_⟩
+      rw [LinearMap.map_smul, smul_eq_mul, div_mul_cancel₀ _ hv]
+    rw [hE, hran, finrank_top, Module.finrank_self] at hfrk
+    omega
+  haveI : FiniteDimensional ℝ ↥(LinearMap.ker g₀) :=
+    Module.finite_of_finrank_pos (by rw [hk1]; norm_num)
+  have hker_eq : ∀ w : E, w ≠ 0 → w ∈ LinearMap.ker g₀ →
+      LinearMap.ker g₀ = ℝ ∙ w := fun w hw0 hwm ↦
+    (Submodule.eq_of_le_of_finrank_eq
+      ((Submodule.span_singleton_le_iff_mem _ _).2 hwm) (by
+        rw [finrank_span_singleton hw0, hk1])).symm
+  by_cases hcard : 2 ≤ S.card
+  · -- `S` has at least two points: `conv S` is already the visible edge.
+    obtain ⟨q₁, hq₁, q₂, hq₂, hq₁q₂⟩ :=
+      Finset.one_lt_card.1 (by omega : 1 < S.card)
+    have hq₁Q : q₁ ∈ Q := (Finset.mem_filter.1 hq₁).1
+    have hq₂Q : q₂ ∈ Q := (Finset.mem_filter.1 hq₂).1
+    have hgq₁ : g₀ q₁ = g₀ a₀ := (Finset.mem_filter.1 hq₁).2
+    have hgq₂ : g₀ q₂ = g₀ a₀ := (Finset.mem_filter.1 hq₂).2
+    have hψqq : ψ q₁ ≠ ψ q₂ := by
+      intro heq
+      have hqq : q₁ - q₂ ≠ 0 := sub_ne_zero.2 hq₁q₂
+      have hker0 : q₁ - q₂ ∈ LinearMap.ker g₀ ⊓ LinearMap.ker ψ := by
+        rw [Submodule.mem_inf, LinearMap.mem_ker, LinearMap.mem_ker]
+        refine ⟨?_, ?_⟩
+        · rw [map_sub, hgq₁, hgq₂, sub_self]
+        · rw [map_sub, heq, sub_self]
+      have hle : LinearMap.ker g₀ ≤ LinearMap.ker ψ := by
+        rw [hker_eq _ hqq hker0.1]
+        exact (Submodule.span_singleton_le_iff_mem _ _).2 hker0.2
+      have hspan := FiniteDimensional.mem_span_of_iInf_ker_le_ker
+        (L := fun _ : Fin 1 ↦ g₀) (K := ψ) (by
+          rw [iInf_const]
+          exact hle)
+      rw [Set.range_const] at hspan
+      exact hψg hspan
+    obtain ⟨a', ha'S, ha'min⟩ := S.exists_min_image (fun w ↦ ψ w) hSne
+    obtain ⟨b', hb'S, hb'max⟩ := S.exists_max_image (fun w ↦ ψ w) hSne
+    have hψab : ψ a' < ψ b' := by
+      by_contra hle
+      push Not at hle
+      have : ψ q₁ = ψ q₂ := by
+        have h1 := ha'min q₁ hq₁
+        have h2 := ha'min q₂ hq₂
+        have h3 := hb'max q₁ hq₁
+        have h4 := hb'max q₂ hq₂
+        linarith [h1, h2, h3, h4, hle]
+      exact hψqq this
+    have hab' : a' ≠ b' := fun e ↦ (ne_of_lt hψab) (congrArg (⇑ψ) e)
+    have ha'Q : a' ∈ Q := (Finset.mem_filter.1 ha'S).1
+    have hb'Q : b' ∈ Q := (Finset.mem_filter.1 hb'S).1
+    have hga' : g₀ a' = g₀ a₀ := (Finset.mem_filter.1 ha'S).2
+    have hgb' : g₀ b' = g₀ a₀ := (Finset.mem_filter.1 hb'S).2
+    refine ⟨g₀, a', b', ha'Q, hb'Q, hab', by rw [hga', hgb'],
+      fun q hq ↦ by rw [hga']; exact ha₀max q hq, ?_, ?_⟩
+    · intro q hq hqeq
+      have hqS : q ∈ S := Finset.mem_filter.2 ⟨hq, by rw [hqeq, hga']⟩
+      have hb'a'0 : b' - a' ≠ 0 := sub_ne_zero.2 (Ne.symm hab')
+      have hkerbq : q - a' ∈ LinearMap.ker g₀ := by
+        rw [LinearMap.mem_ker, map_sub, hqeq, hga', sub_self]
+      have hkerba' : b' - a' ∈ LinearMap.ker g₀ := by
+        rw [LinearMap.mem_ker, map_sub, hgb', hga', sub_self]
+      rw [hker_eq _ hb'a'0 hkerba'] at hkerbq
+      obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 hkerbq
+      have hψt : ψ q - ψ a' = t * (ψ b' - ψ a') := by
+        have e : ψ (q - a') = t * ψ (b' - a') := by
+          rw [← ht, map_smul, smul_eq_mul]
+        rw [map_sub] at e
+        rw [map_sub] at e
+        exact e
+      have hψba : 0 < ψ b' - ψ a' := sub_pos.2 hψab
+      have htval : t = (ψ q - ψ a') / (ψ b' - ψ a') :=
+        (eq_div_iff (sub_ne_zero.2 (ne_of_gt hψab))).2 hψt.symm
+      have ht0 : 0 ≤ t := by
+        rw [htval]
+        exact div_nonneg (sub_nonneg.2 (ha'min q hqS)) hψba.le
+      have ht1 : t ≤ 1 := by
+        rw [htval, div_le_one hψba]
+        exact sub_le_sub_right (hb'max q hqS) _
+      rw [segment_eq_image']
+      exact ⟨t, ⟨ht0, ht1⟩, by
+        show a' + t • (b' - a') = q
+        rw [ht]; abel⟩
+    · rw [hga']
+      exact lt_trans ha₀lt hg₀z
+  · -- `S = {a₀}`: a₀ is a strictly (-g₀)-exposed vertex.
+    push Not at hcard
+    have hSa₀ : S = {a₀} := by
+      have h1 : S.card = 1 := by
+        have hpos := Finset.card_pos.2 hSne
+        omega
+      rw [Finset.card_eq_one] at h1
+      obtain ⟨a, ha⟩ := h1
+      have ha₀S : a₀ ∈ S := Finset.mem_filter.2 ⟨ha₀, rfl⟩
+      rw [ha] at ha₀S
+      exact (Finset.mem_singleton.1 ha₀S).symm ▸ ha
+    have hφ' : ∀ w ∈ Q, w ≠ a₀ → 0 < (-g₀) (w - a₀) := by
+      intro w hw hwu
+      have hwnS : w ∉ S := by
+        rw [hSa₀]; exact Finset.notMem_singleton.2 hwu
+      have hgne : g₀ w ≠ g₀ a₀ := fun e ↦ hwnS (Finset.mem_filter.2 ⟨hw, e⟩)
+      have hglt : g₀ w < g₀ a₀ := lt_of_le_of_ne (ha₀max w hw) hgne
+      rw [LinearMap.neg_apply, map_sub]
+      linarith [hglt]
+    have hKT' : (⊤ : Submodule ℝ E) ≤ vectorSpan ℝ (↑Q : Set E) :=
+      le_of_eq
+        (AffineSubspace.vectorSpan_eq_top_of_affineSpan_eq_top ℝ _ _ hQ).symm
+    have hK2' : Module.finrank ℝ ↥(⊤ : Submodule ℝ E) = 2 := by
+      rw [finrank_top]; exact hE
+    have hψφ' : ∀ l : ℝ, ∃ v : E, v ∈ (⊤ : Submodule ℝ E) ∧
+        ψ v ≠ l * (-g₀) v := by
+      intro l
+      by_contra hcon
+      push Not at hcon
+      apply hψg
+      rw [Submodule.mem_span_singleton]
+      refine ⟨-l, ?_⟩
+      ext v
+      simp only [LinearMap.smul_apply, smul_eq_mul]
+      have hv := hcon v (Submodule.mem_top)
+      rw [LinearMap.neg_apply] at hv
+      linarith [hv]
+    obtain ⟨b₁, b₂, l₁, l₂, hlt, hb₁Q, hb₂Q, hb₁u, hb₂u,
+        hbnd₁, hbnd₂, hseg₁, hseg₂, heq₁, heq₂, hindep⟩ :=
+      two_edges_at_strict_vertex (T := Q) (u := a₀) (φ := -g₀) (ψ := ψ)
+        ha₀ hφ' (⊤ : Submodule ℝ E) (fun _ _ ↦ Submodule.mem_top)
+        hKT' hK2' hψφ'
+    -- visibility: at least one of the two edges stays on the `z` side
+    have hφΔ : (-g₀) (z - a₀) < 0 := by
+      rw [LinearMap.neg_apply, map_sub]
+      have hgz' : g₀ a₀ < g₀ z := lt_trans ha₀lt hg₀z
+      linarith [hgz']
+    have hvis : 0 < (l₁ • (-g₀) - ψ) (z - a₀) ∨
+        0 < (ψ - l₂ • (-g₀)) (z - a₀) := by
+      rcases le_or_gt (ψ (z - a₀)) (l₂ * (-g₀) (z - a₀)) with h | h
+      · left
+        have e : l₂ * (-g₀) (z - a₀) < l₁ * (-g₀) (z - a₀) := by
+          have h2 := mul_neg_of_pos_of_neg (sub_pos.2 hlt) hφΔ
+          linarith [h2]
+        rw [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+        linarith [h, e]
+      · right
+        rw [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+        linarith [h]
+    rcases hvis with h1 | h2
+    · refine ⟨l₁ • (-g₀) - ψ, a₀, b₁, ha₀, hb₁Q, hb₁u.symm, ?_, ?_, ?_, ?_⟩
+      · have e : (l₁ • (-g₀) - ψ) (b₁ - a₀) = 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_eq_zero.2 heq₁
+        rw [map_sub] at e
+        exact (sub_eq_zero.1 e).symm
+      · intro q hq
+        have e : (l₁ • (-g₀) - ψ) (q - a₀) ≤ 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_nonpos.2 (hbnd₁ q hq)
+        rw [map_sub] at e
+        exact sub_nonpos.1 e
+      · intro q hq hqeq
+        have e : (l₁ • (-g₀) - ψ) (q - a₀) = 0 := by
+          rw [map_sub]; exact sub_eq_zero.2 hqeq
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at e
+        have e3 : l₁ * (-g₀) (q - a₀) = ψ (q - a₀) := sub_eq_zero.1 e
+        exact hseg₁ q hq e3
+      · rw [map_sub] at h1
+        linarith [h1]
+    · refine ⟨ψ - l₂ • (-g₀), a₀, b₂, ha₀, hb₂Q, hb₂u.symm, ?_, ?_, ?_, ?_⟩
+      · have e : (ψ - l₂ • (-g₀)) (b₂ - a₀) = 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_eq_zero.2 heq₂
+        rw [map_sub] at e
+        exact (sub_eq_zero.1 e).symm
+      · intro q hq
+        have e : (ψ - l₂ • (-g₀)) (q - a₀) ≤ 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_nonpos.2 (hbnd₂ q hq)
+        rw [map_sub] at e
+        exact sub_nonpos.1 e
+      · intro q hq hqeq
+        have e : (ψ - l₂ • (-g₀)) (q - a₀) = 0 := by
+          rw [map_sub]; exact sub_eq_zero.2 hqeq
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at e
+        have e3 : ψ (q - a₀) = l₂ * (-g₀) (q - a₀) := sub_eq_zero.1 e
+        exact hseg₂ q hq e3
+      · rw [map_sub] at h2
+        linarith [h2]
 
 /-- **Edge separation** (paper §2, "easy to see"): for `x ≠ y` in a
-`conv P`-free set, there is an edge `{u,v}` of `conv P` and a plane
-`H = const` through the line `xy`, parallel to the edge and strictly
-separating `xy` from `P`.  In particular the direction `v - u` is not
-parallel to `y - x`.
+`conv P`-free set and a *genuinely three-dimensional* `P`
+(`affineSpan ℝ ↑P = ⊤`, the paper's `3`-polytope setting), there is an edge
+`{u,v}` of `conv P` and a plane `H = const` through the line `xy`, parallel
+to the edge and strictly separating `xy` from `P`.  In particular the
+direction `v - u` is not parallel to `y - x`.
 
-GAP.  A precise account of the intended proof and the missing lemmas:
+The hypothesis `hPfull` is necessary: for `P` the vertex set of a triangle
+in a plane `Π` (which has `edgeCount P = 3`) and `xy ⊆ Π` disjoint from
+`conv P`, every edge direction of `conv P` lies in the direction of `Π`,
+so `H (v - u) = 0` with `H x = H y` forces `H` constant on `Π`, giving
+`H p = H x` and contradicting `H p < H x`.
 
-1.  Project along `d := y - x`: a linear `π : Euc 3 →ₗ[ℝ] Euc 2` with
-    `ker π = ℝ ∙ d` is needed.  `projAlong d` works only when
-    `d (Fin.last 2) ≠ 0`; in general pick a coordinate permutation `σ`
-    putting a nonzero coordinate of `d` last and take
-    `π = projAlong (Eσ d) ∘ Eσ` (or work in the quotient
-    `Euc 3 ⧸ ℝ ∙ d` and transfer through `finrank = 2`).
-    Then `π x = π y =: z`, and `z ∉ convexHull ℝ (π '' ↑P)`: otherwise
-    `z = π w` for `w ∈ conv P` gives `w - x ∈ ker π = ℝ ∙ (y - x)`, so
-    `w ∈ affineSpan ℝ {x, y} ∩ conv P`, contradicting `FreeOf`.
-
-2.  *Planar visible-edge lemma* (missing): for a finite `Q ⊆ Euc 2` and
-    `z ∉ convexHull ℝ Q`, there is a functional `g : Euc 2 →ₗ[ℝ] ℝ` whose
-    argmax face on `conv Q` is a genuine segment `segment a' b'`
-    (`a' ≠ b'`, `a' b' ∈ Q`) with `g z > c' = g a'`.  Route: strict
-    separation of the point `z` from the compact convex hull
-    (closest point `p₀` with `⟨z - p₀, q' - p₀⟩ ≤ 0`, or Hahn–Banach)
-    gives `g₀`; if its argmax face is a vertex, rotate `g₀` to the normal
-    of an adjacent edge — the rotation must be justified to stay
-    separating, or one instead takes the *exit edge* where the segment
-    `[p₀, z]` leaves the polygon (a boundary point lies on an exposed
-    edge, and transversality of the exit makes that edge visible from
-    `z`).  Either way this needs boundary/edge structure of planar
-    `convexHull` of a finset, which mathlib does not provide.
-
-3.  *Lift*: with `H₀ := g ∘ π` and `c' := g a'`, the face
-    `F := conv P ∩ {H₀ = c'}` satisfies `π '' F ⊆ e' = segment a' b'` and
-    `F = conv (P ∩ {H₀ = c'})` (max-face of a linear functional on a
-    finite convex hull is the hull of the maximizers).  Since
-    `a' = π a`, `b' = π b` lift to `P`-points of `F`, `π '' F = e'` is
-    non-degenerate, so `F` has a one-dimensional face `[u,v]` whose
-    direction is not `ℝ`-parallel to `y - x` (if `F` is a segment it is
-    that edge; if `F` is a polygon it has ≥ 3 edges, at most 2 parallel
-    to `y - x`).  A one-dimensional face of a face is a face of
-    `conv P`, exposed by the perturbed functional `f := -H₀ + ε • H₂`
-    where `H₂` exposes `[u,v]` inside the plane `{H₀ = c'}` and `ε` is
-    smaller than the finite gap `min {c' - H₀ w : w ∈ P, H₀ w < c'}`
-    divided by the `H₂`-variation on `P`; this gives `IsEdgeOf P u v`.
-    Finally `H := H₀` (or `-H₀` for the strict sign) satisfies
-    `H (v - u) = 0`, `H x = H y`, `H p < H x`, and `v - u ≠ t • (y - x)`
-    since `π (v - u) ≠ 0`.
-
-Steps 2 and 3 require a developed theory of polytope faces
-(exposed faces of `convexHull` of a finset, extreme points of a face are
-extreme points of the polytope, faces of faces are faces, functional
-perturbation) which is not currently in this development. -/
+PROOF.  Project along `d := y - x` onto `W := (ℝ ∙ d)ᗮ`, a real
+2-dimensional inner product space.  The projected point `z := π x = π y`
+avoids `convexHull ℝ (π '' ↑P)`: a preimage `w` would lie on the affine
+line `xy`, contradicting `FreeOf`.  The planar `exists_visible_functional`
+produces an exposed edge `[a', b']` of `conv (π '' ↑P)` visible from `z`;
+its lift `H := g ∘ π` is max on `P` exactly on
+`P₀ := P ∩ {H = g a'}`.  If `P₀` is collinear, the `⟪b' - a', π ·⟫`-extremal
+points `u, v` span `P₀` and `f := -H` exposes `[u,v]` on `P` — and
+`v - u` is not parallel to `d` because `π (v - u) ≠ 0`.  Otherwise
+`conv P₀` is a polygon spanning `ker H`; a generic `m` makes
+`u := argmin ⟪m, ·⟫` a strictly exposed vertex of `conv P₀`, and
+`two_edges_at_strict_vertex` applied to a generic `ψ := ⟪m_ψ, ·⟫` gives the
+two incident edges `[u, b₁]`, `[u, b₂]`, one of whose directions is not
+parallel to `d`; that edge is exposed on `P` by the perturbation
+`F := -H - ε • f` with `ε` smaller than the finite gap
+`g a' - H w` over `w ∈ P ∖ P₀`, divided by the `f`-variation on `P`. -/
 theorem edge_separates {P : Finset (Euc 3)} (hP : 3 ≤ edgeCount P)
+    (hPfull : affineSpan ℝ (P : Set (Euc 3)) = ⊤)
     {X : Finset (Euc 3)} (hXfree : FreeOf X (convexHull ℝ (P : Set (Euc 3))))
     {x y : Euc 3} (hx : x ∈ X) (hy : y ∈ X) (hxy : x ≠ y) :
     ∃ u v : Euc 3, IsEdgeOf P u v ∧
       ∃ H : Euc 3 →ₗ[ℝ] ℝ, H (v - u) = 0 ∧ H x = H y ∧
         (∀ p ∈ P, H p < H x) ∧ ¬ ∃ t : ℝ, v - u = t • (y - x) := by
-  sorry
+  classical
+  have hxP : x ∉ convexHull ℝ (P : Set (Euc 3)) := hXfree.notMem hx hy hxy
+  -- project along `d := y - x` onto `W := (ℝ ∙ d)ᗮ`
+  set d : Euc 3 := y - x with hd
+  have hd0 : d ≠ 0 := by rw [hd]; exact sub_ne_zero.2 (Ne.symm hxy)
+  haveI : FiniteDimensional ℝ ↥(ℝ ∙ d) :=
+    FiniteDimensional.span_of_finite ℝ (Set.finite_singleton d)
+  haveI : CompleteSpace ↥(ℝ ∙ d) :=
+    (Submodule.complete_of_finiteDimensional _).completeSpace_coe
+  set W : Submodule ℝ (Euc 3) := (ℝ ∙ d)ᗮ with hW
+  haveI : W.HasOrthogonalProjection := by rw [hW]; infer_instance
+  set πL : Euc 3 →L[ℝ] ↥W := W.orthogonalProjectionOnto with hπL
+  set π : Euc 3 →ₗ[ℝ] ↥W := πL.toLinearMap with hπ
+  have hπsurj : Function.Surjective π := fun w ↦
+    ⟨w.1, Submodule.orthogonalProjectionOnto_mem_subspace_eq_self (K := W) w⟩
+  have hπker : ∀ v : Euc 3, π v = 0 ↔ v ∈ ℝ ∙ d := by
+    intro v
+    have horth : Wᗮ = ℝ ∙ d := by
+      have e : (ℝ ∙ d)ᗮᗮ = ℝ ∙ d := Submodule.orthogonal_orthogonal (ℝ ∙ d)
+      rwa [hW]
+    have e := Submodule.orthogonalProjectionOnto_eq_zero_iff (K := W) (v := v)
+    rw [horth] at e
+    exact e
+  have hπxy : π x = π y := by
+    have e : π d = 0 := (hπker d).2 (Submodule.mem_span_singleton_self d)
+    have e2 : π (y - x) = 0 := by rw [← hd]; exact e
+    rw [map_sub] at e2
+    exact (sub_eq_zero.1 e2).symm
+  have hWfin2 : Module.finrank ℝ ↥W = 2 := by
+    have h := Submodule.finrank_add_finrank_orthogonal (ℝ ∙ d)
+    rw [finrank_span_singleton hd0, finrank_euclideanSpace_fin] at h
+    rw [hW]
+    omega
+  set Q : Finset ↥W := P.image fun p ↦ π p with hQ
+  have hQcoe : (↑Q : Set ↥W) = π '' (↑P : Set (Euc 3)) := by
+    rw [hQ]; exact Finset.coe_image
+  have hQfull : affineSpan ℝ (↑Q : Set ↥W) = ⊤ := by
+    rw [hQcoe]
+    have htoa : ⇑π.toAffineMap = ⇑π := LinearMap.coe_toAffineMap π
+    rw [← htoa]
+    exact AffineMap.span_eq_top_of_surjective π.toAffineMap
+      (htoa.symm ▸ hπsurj) hPfull
+  have hz : π x ∉ convexHull ℝ (↑Q : Set ↥W) := by
+    rw [hQcoe]
+    intro hmem
+    rw [← LinearMap.image_convexHull] at hmem
+    obtain ⟨w, hwconv, hweq⟩ := hmem
+    have hker : w - x ∈ ℝ ∙ d := by
+      have e : π (w - x) = 0 := by rw [map_sub, hweq, sub_self]
+      exact (hπker _).1 e
+    obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 hker
+    have hweq' : w = x + t • (y - x) := by
+      have h1 : t • (y - x) = w - x := by rw [← hd]; exact ht
+      rw [h1]; abel
+    have haff : w ∈ affineSpan ℝ ({x, y} : Set (Euc 3)) := by
+      rw [hweq']
+      have e : x + t • (y - x) = AffineMap.lineMap x y t := by
+        rw [AffineMap.lineMap_apply_module', add_comm]
+      rw [e]
+      exact AffineMap.lineMap_mem_affineSpan_pair t x y
+    exact hXfree x hx y hy hxy w haff hwconv
+  obtain ⟨g, a', b', ha'Q, hb'Q, hab', hga', hgmax, hgface, hgz⟩ :=
+    exists_visible_functional hWfin2 hQfull (z := π x) hz
+  set H : Euc 3 →ₗ[ℝ] ℝ := g.comp π with hHdef
+  have hHapp : ∀ w : Euc 3, H w = g (π w) := fun _ ↦ rfl
+  have hHxy : H x = H y := by rw [hHapp, hHapp, hπxy]
+  have hHP : ∀ p ∈ P, H p < H x := by
+    intro p hp
+    have hπp : π p ∈ Q := Finset.mem_image.2 ⟨p, hp, rfl⟩
+    rw [hHapp, hHapp]
+    exact lt_of_le_of_lt (hgmax _ hπp) hgz
+  set P₀ : Finset (Euc 3) := P.filter fun p ↦ H p = g a' with hP₀
+  obtain ⟨pₐ, hpₐ, hpₐπ⟩ := Finset.mem_image.1 ha'Q
+  obtain ⟨p_b, hp_b, hp_bπ⟩ := Finset.mem_image.1 hb'Q
+  have hpₐ₀ : pₐ ∈ P₀ := Finset.mem_filter.2 ⟨hpₐ, by rw [hHapp, hpₐπ]⟩
+  have hp_b₀ : p_b ∈ P₀ :=
+    Finset.mem_filter.2 ⟨hp_b, by rw [hHapp, hp_bπ, hga']⟩
+  have hP₀ne : P₀.Nonempty := ⟨pₐ, hpₐ₀⟩
+  have hP₀sub : ∀ p ∈ P₀, p ∈ P := fun p hp ↦ (Finset.mem_filter.1 hp).1
+  have hP₀eq : ∀ p ∈ P₀, H p = g a' := fun p hp ↦ (Finset.mem_filter.1 hp).2
+  have hP₀le : ∀ p ∈ P, H p ≤ g a' := fun p hp ↦ by
+    rw [hHapp]
+    exact hgmax _ (Finset.mem_image.2 ⟨p, hp, rfl⟩)
+  by_cases hcoll : Collinear ℝ (↑P₀ : Set (Euc 3))
+  · -- `conv P₀` is a segment (or a point): take the `⟪b' - a', π ·⟫`-extremes.
+    set f₃ : Euc 3 →ₗ[ℝ] ℝ := (innerₛₗ ℝ (b' - a')).comp π with hf₃
+    have hf₃app : ∀ w : Euc 3, f₃ w = ⟪b' - a', π w⟫_ℝ := fun w ↦ by
+      show innerₛₗ ℝ (b' - a') (π w) = _
+      rw [innerₛₗ_apply_apply]
+    have hf₃ab : f₃ pₐ < f₃ p_b := by
+      have hd' : b' - a' ≠ 0 := sub_ne_zero.2 (Ne.symm hab')
+      have hdiff : f₃ p_b - f₃ pₐ = ‖b' - a'‖ ^ 2 := by
+        rw [hf₃app, hf₃app, hp_bπ, hpₐπ, ← inner_sub_right,
+          real_inner_self_eq_norm_sq]
+      have hpos : 0 < f₃ p_b - f₃ pₐ := by
+        rw [hdiff]
+        exact pow_pos (norm_pos_iff.2 hd') 2
+      linarith [hpos]
+    obtain ⟨u, hu₀, humin⟩ := P₀.exists_min_image (fun w ↦ f₃ w) hP₀ne
+    obtain ⟨v, hv₀, hvmax⟩ := P₀.exists_max_image (fun w ↦ f₃ w) hP₀ne
+    have hf₃uv : f₃ u < f₃ v :=
+      lt_of_le_of_lt (humin pₐ hpₐ₀) (lt_of_lt_of_le hf₃ab (hvmax p_b hp_b₀))
+    have huv : u ≠ v := fun e ↦ (ne_of_lt hf₃uv) (congrArg (⇑f₃) e)
+    have hP₀seg : ∀ w ∈ P₀, w ∈ segment ℝ u v := by
+      intro w hw
+      obtain ⟨dir, hdir⟩ :=
+        (collinear_iff_of_mem (Finset.mem_coe.2 hu₀)).1 hcoll
+      obtain ⟨rv, hvr⟩ := hdir v (Finset.mem_coe.2 hv₀)
+      obtain ⟨rw_, hwr⟩ := hdir w (Finset.mem_coe.2 hw)
+      rw [vadd_eq_add] at hvr hwr
+      have hvsub : v - u = rv • dir := by rw [hvr]; abel
+      have hwsub : w - u = rw_ • dir := by rw [hwr]; abel
+      have hf₃vsub : f₃ v - f₃ u = rv * f₃ dir := by
+        have e : f₃ (v - u) = rv * f₃ dir := by
+          rw [hvsub, map_smul, smul_eq_mul]
+        rwa [map_sub] at e
+      have hf₃wsub : f₃ w - f₃ u = rw_ * f₃ dir := by
+        have e : f₃ (w - u) = rw_ * f₃ dir := by
+          rw [hwsub, map_smul, smul_eq_mul]
+        rwa [map_sub] at e
+      have hden : 0 < f₃ v - f₃ u := sub_pos.2 hf₃uv
+      have hf₃dir : f₃ dir ≠ 0 := by
+        intro e
+        rw [e, mul_zero] at hf₃vsub
+        linarith [hf₃vsub, hden]
+      have hrv : rv ≠ 0 := by
+        intro e
+        rw [e, zero_mul] at hf₃vsub
+        linarith [hf₃vsub, hden]
+      set t : ℝ := (f₃ w - f₃ u) / (f₃ v - f₃ u) with ht
+      have ht0 : 0 ≤ t := div_nonneg (sub_nonneg.2 (humin w hw)) hden.le
+      have ht1 : t ≤ 1 := by
+        rw [ht, div_le_one hden]
+        exact sub_le_sub_right (hvmax w hw) _
+      have htw : t • (v - u) = w - u := by
+        rw [hvsub, hwsub, smul_smul]
+        have e : t * rv = rw_ := by
+          have e1 : t = rw_ / rv := by
+            rw [ht, hf₃vsub, hf₃wsub, mul_div_mul_right _ _ hf₃dir]
+          rw [e1]; exact div_mul_cancel₀ _ hrv
+        rw [e]
+      rw [segment_eq_image']
+      exact ⟨t, ⟨ht0, ht1⟩, by show u + t • (v - u) = w; rw [htw]; abel⟩
+    have hEdge : IsEdgeOf P u v := by
+      refine ⟨hP₀sub u hu₀, hP₀sub v hv₀, huv, -H, -g a', ?_, ?_⟩
+      · intro w hw
+        simp only [LinearMap.neg_apply]
+        rw [hHapp]
+        exact neg_le_neg (hP₀le w hw)
+      · intro w hw heq
+        have hw0 : w ∈ P₀ := Finset.mem_filter.2 ⟨hw, by
+          have e := heq
+          simp only [LinearMap.neg_apply] at e
+          rw [hHapp] at e
+          rw [hHapp]
+          linarith [e]⟩
+        exact hP₀seg w hw0
+    have hHvu : H (v - u) = 0 := by
+      rw [map_sub, hP₀eq v hv₀, hP₀eq u hu₀, sub_self]
+    have hpar : ¬∃ t : ℝ, v - u = t • (y - x) := by
+      rintro ⟨t, ht⟩
+      have hker : v - u ∈ ℝ ∙ d :=
+        Submodule.mem_span_singleton.2 ⟨t, by rw [hd]; exact ht.symm⟩
+      have e : π (v - u) = 0 := (hπker _).2 hker
+      rw [map_sub] at e
+      have hπvu : π v = π u := sub_eq_zero.1 e
+      have hfv : f₃ v = f₃ u := by rw [hf₃app, hf₃app, hπvu]
+      exact (ne_of_gt hf₃uv) hfv
+    exact ⟨u, v, hEdge, H, hHvu, hHxy, hHP, hpar⟩
+  · -- `conv P₀` is a polygon spanning `ker H`; work at a strict vertex.
+    set K : Submodule ℝ (Euc 3) := LinearMap.ker H with hKdef
+    have hHne : H ≠ 0 := by
+      intro h0
+      have e : H x = H pₐ := by rw [h0]; simp
+      rw [hHapp, hHapp, hpₐπ] at e
+      exact (ne_of_gt hgz) e
+    have hKdim : Module.finrank ℝ ↥K = 2 := by
+      have hfrk := LinearMap.finrank_range_add_finrank_ker H
+      have hran : LinearMap.range H = ⊤ := by
+        rw [eq_top_iff]
+        intro r _
+        obtain ⟨w', hw'⟩ : ∃ w' : ↥W, g w' = r := by
+          have hgne : g ≠ 0 := by
+            intro e
+            have ee : g (π x) = g a' := by rw [e]; simp
+            exact (ne_of_gt hgz) ee
+          obtain ⟨v, hv⟩ : ∃ v, g v ≠ 0 := by
+            by_contra hc
+            push Not at hc
+            exact hgne (LinearMap.ext hc)
+          exact ⟨(r / g v) • v,
+            by rw [LinearMap.map_smul, smul_eq_mul, div_mul_cancel₀ _ hv]⟩
+        obtain ⟨p, hp⟩ := hπsurj w'
+        exact LinearMap.mem_range.2 ⟨p, by rw [hHapp, hp, hw']⟩
+      rw [hran, finrank_top, Module.finrank_self, finrank_euclideanSpace_fin]
+        at hfrk
+      rw [hKdef]
+      omega
+    have hvsK : vectorSpan ℝ (↑P₀ : Set (Euc 3)) = K := by
+      have hle : vectorSpan ℝ (↑P₀ : Set (Euc 3)) ≤ K := by
+        rw [vectorSpan_def]
+        apply Submodule.span_le.2
+        intro x hx
+        obtain ⟨p, hp, q, hq, rfl⟩ := Set.mem_vsub.1 hx
+        rw [vsub_eq_sub]
+        show (p - q) ∈ LinearMap.ker H
+        rw [LinearMap.mem_ker, map_sub, hP₀eq p (Finset.mem_coe.1 hp),
+          hP₀eq q (Finset.mem_coe.1 hq), sub_self]
+      haveI : FiniteDimensional ℝ ↥(vectorSpan ℝ (↑P₀ : Set (Euc 3))) :=
+        finiteDimensional_vectorSpan_of_finite ℝ P₀.finite_toSet
+      have hge2 : 2 ≤ Module.finrank ℝ ↥(vectorSpan ℝ (↑P₀ : Set (Euc 3))) := by
+        by_contra hle1
+        push Not at hle1
+        exact hcoll (collinear_iff_finrank_le_one.2 (by omega))
+      haveI : FiniteDimensional ℝ ↥K :=
+        Module.finite_of_finrank_pos (by rw [hKdim]; norm_num)
+      have hle2 : Module.finrank ℝ ↥(vectorSpan ℝ (↑P₀ : Set (Euc 3))) ≤ 2 :=
+        (Submodule.finrank_mono hle).trans (le_of_eq hKdim)
+      exact Submodule.eq_of_le_of_finrank_eq hle (by
+        rw [hKdim]; exact le_antisymm hle2 hge2)
+    -- a generic direction `m` separating the pairs of `P₀`
+    set Sm : Finset (Submodule ℝ (Euc 3)) :=
+      ((P₀ ×ˢ P₀).filter fun p ↦ p.1 ≠ p.2).image
+        (fun p ↦ LinearMap.ker (innerₛₗ ℝ (p.1 - p.2))) with hSm
+    have hSmP : ∀ U ∈ Sm, U ≠ ⊤ := by
+      intro U hU
+      obtain ⟨p, hp, rfl⟩ := Finset.mem_image.1 hU
+      have hne : p.1 ≠ p.2 := (Finset.mem_filter.1 hp).2
+      intro htop
+      rw [LinearMap.ker_eq_top] at htop
+      have e : innerₛₗ ℝ (p.1 - p.2) (p.1 - p.2) = 0 := by
+        have h := LinearMap.ext_iff.1 htop (p.1 - p.2)
+        simpa using h
+      simp only [innerₛₗ_apply_apply,
+        real_inner_self_eq_norm_sq] at e
+      have hn0 : ‖p.1 - p.2‖ = 0 := (pow_eq_zero_iff two_ne_zero).1 e
+      exact hne (sub_eq_zero.1 (norm_eq_zero.1 hn0))
+    obtain ⟨m, hm⟩ := exists_avoid_submodules Sm hSmP
+    have hinj : ∀ w w' : Euc 3, w ∈ P₀ → w' ∈ P₀ → w ≠ w' →
+        ⟪m, w - w'⟫_ℝ ≠ 0 := by
+      intro w w' hw hw' hww'
+      have hmem : LinearMap.ker (innerₛₗ ℝ (w - w')) ∈ Sm :=
+        Finset.mem_image.2 ⟨(w, w'),
+          Finset.mem_filter.2 ⟨Finset.mem_product.2 ⟨hw, hw'⟩, hww'⟩, rfl⟩
+      have hmU := hm _ hmem
+      rw [LinearMap.mem_ker, innerₛₗ_apply_apply] at hmU
+      rwa [real_inner_comm]
+    obtain ⟨u, hu₀, humin⟩ := P₀.exists_min_image (fun w ↦ ⟪m, w⟫_ℝ) hP₀ne
+    have hφu : ∀ w ∈ P₀, w ≠ u → 0 < innerₛₗ ℝ m (w - u) := by
+      intro w hw hwu
+      rw [innerₛₗ_apply_apply, inner_sub_right]
+      have hle : ⟪m, u⟫_ℝ ≤ ⟪m, w⟫_ℝ := humin w hw
+      have hne : ⟪m, w⟫_ℝ ≠ ⟪m, u⟫_ℝ := by
+        have e := hinj w u hw hu₀ hwu
+        rw [inner_sub_right] at e
+        exact sub_ne_zero.1 e
+      exact sub_pos.2 (lt_of_le_of_ne hle hne.symm)
+    -- a generic `ψ := ⟪m_ψ, ·⟫` not proportional to `⟪m, ·⟫` on `K`
+    set W' : Submodule ℝ (Euc 3) := Kᗮ ⊔ ℝ ∙ m with hW'def
+    have hW'ne : W' ≠ ⊤ := by
+      intro htop
+      have hKorth1 : Module.finrank ℝ ↥Kᗮ = 1 := by
+        have h := Submodule.finrank_add_finrank_orthogonal K
+        rw [hKdim, finrank_euclideanSpace_fin] at h
+        omega
+      haveI : FiniteDimensional ℝ ↥Kᗮ :=
+        Module.finite_of_finrank_pos (by omega)
+      haveI : FiniteDimensional ℝ ↥(ℝ ∙ m) :=
+        FiniteDimensional.span_of_finite ℝ (Set.finite_singleton m)
+      have hm1 : Module.finrank ℝ ↥(ℝ ∙ m) ≤ 1 := by
+        simpa using finrank_span_le_card ({m} : Set (Euc 3))
+      have hfin : Module.finrank ℝ ↥W' ≤ 2 := by
+        rw [hW'def]
+        exact (Submodule.finrank_add_le_finrank_add_finrank _ _).trans
+          (by rw [hKorth1]; omega)
+      rw [htop, finrank_top, finrank_euclideanSpace_fin] at hfin
+      omega
+    obtain ⟨m_ψ, hmψ⟩ := exists_avoid_submodules {W'} (by
+      intro U hU
+      rw [Finset.mem_singleton] at hU
+      rwa [hU])
+    have hmψ' : m_ψ ∉ W' := hmψ _ (Finset.mem_singleton_self _)
+    have hψφ : ∀ l : ℝ, ∃ v : Euc 3, v ∈ K ∧
+        innerₛₗ ℝ m_ψ v ≠ l * innerₛₗ ℝ m v := by
+      intro l
+      by_contra hcon
+      push Not at hcon
+      apply hmψ'
+      have hmem : m_ψ - l • m ∈ Kᗮ := by
+        rw [Submodule.mem_orthogonal]
+        intro v hvK
+        have hv := hcon v hvK
+        simp only [innerₛₗ_apply_apply] at hv
+        rw [inner_sub_right, inner_smul_right, ← real_inner_comm v m_ψ,
+          ← real_inner_comm v m, sub_eq_zero]
+        exact hv
+      have hsplit : m_ψ = (m_ψ - l • m) + l • m := by abel
+      rw [hW'def, hsplit]
+      exact add_mem (Submodule.mem_sup_left hmem)
+        (Submodule.mem_sup_right (Submodule.mem_span_singleton.2 ⟨l, rfl⟩))
+    have hKu' : ∀ w ∈ P₀, w - u ∈ K := by
+      intro w hw
+      rw [hKdef]
+      show (w - u) ∈ LinearMap.ker H
+      rw [LinearMap.mem_ker, map_sub, hP₀eq w hw, hP₀eq u hu₀, sub_self]
+    obtain ⟨b₁, b₂, l₁, l₂, hlt, hb₁T, hb₂T, hb₁u, hb₂u,
+        hbnd₁, hbnd₂, hseg₁, hseg₂, heq₁, heq₂, hindep⟩ :=
+      two_edges_at_strict_vertex (T := P₀) (u := u)
+        (φ := innerₛₗ ℝ m) (ψ := innerₛₗ ℝ m_ψ)
+        hu₀ hφu K hKu' (le_of_eq hvsK.symm) hKdim hψφ
+    -- perturb `-H` by a small multiple of the functional exposing the
+    -- chosen edge inside `K`: `F := -H - ε • f`
+    have build_edge : ∀ b : Euc 3, ∀ f : Euc 3 →ₗ[ℝ] ℝ,
+        b ∈ P₀ → b ≠ u →
+        (∀ w ∈ P₀, f w ≤ f u) →
+        (∀ w ∈ P₀, f w = f u → w ∈ segment ℝ u b) →
+        b - u ∉ ℝ ∙ d →
+        ∃ u' v' : Euc 3, IsEdgeOf P u' v' ∧ ∃ H₂ : Euc 3 →ₗ[ℝ] ℝ,
+          H₂ (v' - u') = 0 ∧ H₂ x = H₂ y ∧ (∀ p ∈ P, H₂ p < H₂ x) ∧
+          ¬∃ t : ℝ, v' - u' = t • (y - x) := by
+      intro b f hbP₀ hbu hfb hfb_eq hdirb
+      set D : Finset ℝ := (P.filter fun w ↦ H w ≠ g a').image
+        (fun w ↦ g a' - H w) with hDdef
+      set δ : ℝ := if h : D.Nonempty then D.min' h else 1 with hδdef
+      have hδ : 0 < δ ∧ ∀ w ∈ P, H w ≠ g a' → δ ≤ g a' - H w := by
+        by_cases hne : D.Nonempty
+        · constructor
+          · rw [hδdef, dif_pos hne]
+            have hmem := D.min'_mem hne
+            obtain ⟨w, hw, hwe⟩ := Finset.mem_image.1 hmem
+            rw [← hwe]
+            have hlt' : H w < g a' :=
+              lt_of_le_of_ne (hP₀le w (Finset.mem_filter.1 hw).1)
+                (Finset.mem_filter.1 hw).2
+            exact sub_pos.2 hlt'
+          · intro w hw hww
+            rw [hδdef, dif_pos hne]
+            exact Finset.min'_le _ _ (Finset.mem_image.2
+              ⟨w, Finset.mem_filter.2 ⟨hw, hww⟩, rfl⟩)
+        · rw [hδdef, dif_neg hne]
+          refine ⟨one_pos, fun w hw hww ↦ ?_⟩
+          exact absurd ⟨g a' - H w, Finset.mem_image.2
+            ⟨w, Finset.mem_filter.2 ⟨hw, hww⟩, rfl⟩⟩ hne
+      obtain ⟨hδpos, hδbound⟩ := hδ
+      have hPne : P.Nonempty := ⟨u, hP₀sub u hu₀⟩
+      set M : ℝ := (P.image fun w ↦ f w).max' (Finset.Nonempty.image hPne _)
+        with hMdef
+      set C : ℝ := M - f u with hCdef
+      have hC0 : 0 ≤ C := sub_nonneg.2 (Finset.le_max' _ _
+        (Finset.mem_image.2 ⟨u, hP₀sub u hu₀, rfl⟩))
+      set ε : ℝ := δ / (2 * C + 2) with hεdef
+      have hεpos : 0 < ε := div_pos hδpos (by linarith [hC0])
+      have hεC : ε * C < δ := by
+        rw [hεdef, div_mul_eq_mul_div,
+          div_lt_iff₀ (by linarith [hC0] : (0:ℝ) < 2 * C + 2)]
+        exact mul_lt_mul_of_pos_left (by linarith [hC0]) hδpos
+      set F : Euc 3 →ₗ[ℝ] ℝ := -H - ε • f with hFdef
+      have hFapp : ∀ w : Euc 3, F w = -(H w) - ε * f w := fun w ↦ by
+        rw [hFdef]
+        simp only [LinearMap.sub_apply, LinearMap.neg_apply,
+          LinearMap.smul_apply, smul_eq_mul]
+      have hEdge : IsEdgeOf P u b := by
+        refine ⟨hP₀sub u hu₀, hP₀sub b hbP₀, hbu.symm, F, F u, ?_, ?_⟩
+        · intro w hw
+          have hw' : F w - F u = (g a' - H w) - ε * (f w - f u) := by
+            rw [hFapp, hFapp, hP₀eq u hu₀]; ring
+          by_cases hwP₀ : w ∈ P₀
+          · have hHw : H w = g a' := hP₀eq w hwP₀
+            have hfw : f w ≤ f u := hfb w hwP₀
+            have e : F w - F u = ε * (f u - f w) := by
+              rw [hw', hHw]; ring
+            have e2 : 0 ≤ F w - F u := by
+              rw [e]; exact mul_nonneg hεpos.le (sub_nonneg.2 hfw)
+            linarith [e2]
+          · have hHw : H w ≠ g a' :=
+              fun e ↦ hwP₀ (Finset.mem_filter.2 ⟨hw, e⟩)
+            have hδle : δ ≤ g a' - H w := hδbound w hw hHw
+            have hfw : f w ≤ M := Finset.le_max' _ _
+              (Finset.mem_image.2 ⟨w, hw, rfl⟩)
+            have e2 : ε * (f w - f u) ≤ ε * C :=
+              mul_le_mul_of_nonneg_left (by linarith [hfw]) hεpos.le
+            have e0 : 0 < F w - F u := by
+              rw [hw']; linarith [hδle, e2, hεC]
+            linarith [e0]
+        · intro w hw heq
+          have hw' : F w - F u = (g a' - H w) - ε * (f w - f u) := by
+            rw [hFapp, hFapp, hP₀eq u hu₀]; ring
+          have e0 : F w - F u = 0 := sub_eq_zero.2 heq
+          by_cases hwP₀ : w ∈ P₀
+          · have hHw : H w = g a' := hP₀eq w hwP₀
+            have e : F w - F u = ε * (f u - f w) := by
+              rw [hw', hHw]; ring
+            have e1 : ε * (f u - f w) = 0 := by rw [← e]; exact e0
+            rcases mul_eq_zero.1 e1 with h | h
+            · exact absurd h hεpos.ne'
+            · exact hfb_eq w hwP₀ (sub_eq_zero.1 (show f u - f w = 0 by
+                linarith [h])).symm
+          · have hHw : H w ≠ g a' :=
+              fun e ↦ hwP₀ (Finset.mem_filter.2 ⟨hw, e⟩)
+            have hδle : δ ≤ g a' - H w := hδbound w hw hHw
+            have hfw : f w ≤ M := Finset.le_max' _ _
+              (Finset.mem_image.2 ⟨w, hw, rfl⟩)
+            have e2 : ε * (f w - f u) ≤ ε * C :=
+              mul_le_mul_of_nonneg_left (by linarith [hfw]) hεpos.le
+            have e1 : 0 < F w - F u := by
+              rw [hw']; linarith [hδle, e2, hεC]
+            linarith [e1, e0]
+      have hHub : H (b - u) = 0 := by
+        rw [map_sub, hP₀eq b hbP₀, hP₀eq u hu₀, sub_self]
+      have hnpar : ¬∃ t : ℝ, b - u = t • (y - x) := by
+        rintro ⟨t, ht⟩
+        exact hdirb (Submodule.mem_span_singleton.2 ⟨t, by
+          rw [hd]; exact ht.symm⟩)
+      exact ⟨u, b, hEdge, H, hHub, hHxy, hHP, hnpar⟩
+    rcases hindep d with h1 | h2
+    · have hfb : ∀ w ∈ P₀,
+          (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) w ≤
+            (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) u := by
+        intro w hw
+        have e : (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) (w - u) ≤ 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_nonpos.2 (hbnd₁ w hw)
+        rw [map_sub] at e
+        exact sub_nonpos.1 e
+      have hfb_eq : ∀ w ∈ P₀,
+          (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) w =
+            (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) u →
+          w ∈ segment ℝ u b₁ := by
+        intro w hw e
+        have e2 : (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ) (w - u) = 0 := by
+          rw [map_sub]; exact sub_eq_zero.2 e
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at e2
+        have e3 : l₁ * innerₛₗ ℝ m (w - u) = innerₛₗ ℝ m_ψ (w - u) :=
+          sub_eq_zero.1 e2
+        exact hseg₁ w hw e3
+      exact build_edge b₁ (l₁ • innerₛₗ ℝ m - innerₛₗ ℝ m_ψ)
+        hb₁T hb₁u hfb hfb_eq h1
+    · have hfb : ∀ w ∈ P₀,
+          (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) w ≤
+            (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) u := by
+        intro w hw
+        have e : (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) (w - u) ≤ 0 := by
+          simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul]
+          exact sub_nonpos.2 (hbnd₂ w hw)
+        rw [map_sub] at e
+        exact sub_nonpos.1 e
+      have hfb_eq : ∀ w ∈ P₀,
+          (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) w =
+            (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) u →
+          w ∈ segment ℝ u b₂ := by
+        intro w hw e
+        have e2 : (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m) (w - u) = 0 := by
+          rw [map_sub]; exact sub_eq_zero.2 e
+        simp only [LinearMap.sub_apply, LinearMap.smul_apply, smul_eq_mul] at e2
+        have e3 : innerₛₗ ℝ m_ψ (w - u) = l₂ * innerₛₗ ℝ m (w - u) :=
+          sub_eq_zero.1 e2
+        exact hseg₂ w hw e3
+      exact build_edge b₂ (innerₛₗ ℝ m_ψ - l₂ • innerₛₗ ℝ m)
+        hb₂T hb₂u hfb hfb_eq h2
 
 /-! ### Generic projection: supporting infrastructure
 
@@ -1304,7 +2231,33 @@ dimension), or equivalently apply `cupsCaps` in polar coordinates and show
 a `K`-cap on the cup side via the pairwise condition.  Alternatively,
 follow the paper literally: apply `cupsCaps` in coordinates where `K` lies
 below all of `Z` (possible only after showing `Z` lies on one side — which
-itself needs the pairwise condition plus more geometry). -/
+itself needs the pairwise condition plus more geometry).
+
+A sharper formulation of the missing core:
+
+1.  *Reduction to `K = {O}` or `K = ∅`.*  If `O ∈ K` then
+    `conv ({O} ∪ S) ⊆ conv (K ∪ S)`, so `Z` is pairwise `{O}`-free and every
+    `{O}`-cap is a `K`-cap.  For `K = ∅` the conclusion follows from
+    `cupsCaps` (a cup or cap is in convex position) after a generic shear
+    giving `DistinctX`, as in `PlanarDichotomy.lean`.
+
+2.  *`{O}`-cap is a cyclic cups–caps condition.*  Pairwise `{O}`-freeness
+    says exactly that the points of `Z` lie on distinct rays from `O`, and
+    `y ∈ conv ({O} ∪ (A ∖ {y}))` iff `y ∈ conv (A ∖ {y})` or
+    `y ∈ conv {O, a₁, a₂}` for some `a₁ a₂ ∈ A ∖ {y}` (Carathéodory in the
+    plane).  The first alternative is excluded by convex position; the
+    second says `y` lies angularly between `a₁, a₂` on a short arc and
+    below the chord `a₁a₂` as seen from `O`.  With `s_z = 1/‖z - O‖` and
+    `θ_z` the angle of `z - O`, "below the chord" is
+    `ssl(a₁, y) < ssl(y, a₂)` for the cyclic slope
+    `ssl(u,v) = (s_v - s_u) / sin (θ_v - θ_u)` — so the core is a
+    *cyclic* cups–caps theorem around `O` (equivalently, a cups–caps
+    theorem in `(θ, s)`-coordinates with the `sin`-weighted slope `ssl`).
+    Wrap-around triples genuinely occur — pairwise `K`-free sets can
+    surround `K` (e.g. large sets on a circle around a disk, where every
+    subset is already a `K`-cap) — so the linear `cupsCaps_aux` induction
+    does not apply verbatim and the angular/cyclic variant has to be
+    developed. -/
 theorem planar_dichotomy {K : Set (Euc 2)} (hKc : Convex ℝ K) (hKk : IsCompact K)
     {Z : Finset (Euc 2)} (hZ : InGeneralPosition (Z : Set (Euc 2)))
     (hpair : ∀ p ∈ Z, ∀ q ∈ Z, p ≠ q →
@@ -1313,8 +2266,8 @@ theorem planar_dichotomy {K : Set (Euc 2)} (hKc : Convex ℝ K) (hKk : IsCompact
     (hcard : (a + b - 4).choose (a - 2) < Z.card) :
     (∃ A ⊆ Z, A.card = a ∧
       ∀ y ∈ A, y ∉ convexHull ℝ (K ∪ ((A.erase y : Finset _) : Set _))) ∨
-    (∃ B ⊆ Z, B.card = b ∧ InConvexPosition B) := by
-  sorry
+    (∃ B ⊆ Z, B.card = b ∧ InConvexPosition B) :=
+  planar_dichotomy' hKc hKk hZ hpair ha hb hcard
 
 /-! ### Lifting the planar conclusion back to ℝ³ -/
 
@@ -1405,9 +2358,13 @@ theorem lift_convexPosition {X' : Finset (Euc 3)} {π : Euc 3 →ₗ[ℝ] Euc 2}
 genuine polytopes `P` (a polytope has at least three edges); without it the
 statement is false — see `prop_2_1_counterexample` (`edgeCount P = 0`) and
 the collinear-triple configuration (`edgeCount P = 1`) described in the
-module docstring. -/
+module docstring.  The additional hypothesis `hPfull`
+(`affineSpan ℝ ↑P = ⊤`, i.e. `conv P` is a genuine `3`-polytope) is needed
+for `edge_separates`: already a planar triangle has `edgeCount P = 3` but
+has no separating edge plane for an in-plane `xy` disjoint from it. -/
 theorem prop_2_1 (P : Finset (Euc 3))
     (hP : 3 ≤ edgeCount P)
+    (hPfull : affineSpan ℝ (P : Set (Euc 3)) = ⊤)
     {X : Finset (Euc 3)} (hXfree : FreeOf X (convexHull ℝ (P : Set (Euc 3))))
     (hX : InGeneralPosition (X : Set (Euc 3)))
     {a b : ℕ} (ha : 1 ≤ a) (hb : 1 ≤ b)
@@ -1552,7 +2509,7 @@ theorem prop_2_1 (P : Finset (Euc 3))
           ∃ s ∈ edgeSet P, ¬ rel s x y ∧ ¬ rel s y x := by
         intro x hx y hy hxy
         obtain ⟨u, v, hE, H, hHd, hHxy, hHP, hpar⟩ :=
-          edge_separates hP hXfree hx hy hxy
+          edge_separates hP hPfull hXfree hx hy hxy
         have huv : u ≠ v := hE.2.2.1
         have hcard2 : ({u, v} : Finset (Euc 3)).card = 2 := by
           rw [Finset.card_insert_of_notMem (by simpa using huv),
