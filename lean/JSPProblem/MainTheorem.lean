@@ -3689,7 +3689,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
     choose CS A hA using hdata
     exact finish CS A (fun l ↦ (hA l).1) (fun l ↦ (hA l).2.1)
       (fun l ↦ (hA l).2.2.1) (fun l ↦ (hA l).2.2.2.1) (fun l ↦ (hA l).2.2.2.2)
-  · -- color 1: no good triple admits `P¹`-free data; all admit `P²`-free data
+  · -- color 1: no good triple has `P¹`-free data; all have `P²`-free data
     have hdata : ∀ l : Fin u, ∃ Cset : Set (Euc 3), ∃ A : Finset (Euc 3),
         Convex ℝ Cset ∧ A ⊆ Y (σe (bIdx l)) ∧
         (Y (σe (bIdx l))).card ≤ A.card ^ 2 ∧

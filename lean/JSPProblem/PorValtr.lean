@@ -1,7 +1,10 @@
 import JSPProblem.PorValtrSeqs
 
+open Finset
+
 noncomputable section
 
+set_option maxHeartbeats 1600000 in
 /-- **Pór–Valtr existence core** — the full mathematical content of
 
 Mathematical gap: this is the research-level positive-fraction
@@ -41,7 +44,7 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
       have h1 : (8 * k - 2).choose (4 * k - 1) ≤ 2 ^ (8 * k - 2) :=
         Nat.choose_le_two_pow _ _
       have h2 : (2 : ℕ) ^ (8 * k - 2) + 2 ^ (8 * k - 2) = 2 ^ (8 * k - 1) := by
-        rw [← two_mul, ← pow_succ]; congr 1; omega
+        rw [← two_mul, ← pow_succ']; congr 1; omega
       have h3 : (1 : ℕ) ≤ 2 ^ (8 * k - 2) := Nat.one_le_pow _ _ (by norm_num)
       calc (8 * k - 2).choose (4 * k - 1) + 1
           ≤ 2 ^ (8 * k - 2) + 2 ^ (8 * k - 2) := by omega
@@ -74,7 +77,7 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
       rw [← card_pvSeqs, ← card_pvSeqs, hbool]
       exact add_le_add (pv_fiber_bound hdx true) (pv_fiber_bound hdx false)
     have hpairs : (∑ σ : Bool, #(pvSeqs X σ (2 * k))) ≤ 2 * X.card.choose (2 * k + 1) := by
-      rw [hbool, two_mul]
+      rw [hbool, two_mul (X.card.choose (2 * k + 1))]
       exact add_le_add pvSeqs_le pvSeqs_le
     have hcomb : X.card.choose ((8 * k - 2).choose (4 * k - 1) + 1) ≤
         (∑ σ : Bool, ∑ y ∈ pvSeqs X σ (2 * k), ∏ i : Fin (2 * k), #(pvSupp X y σ i)) *
@@ -94,11 +97,11 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
             (∏ i : Fin (2 * k), #(pvSupp X y σ i))) <
           (∑ σ : Bool, #(pvSeqs X σ (2 * k))) *
             X.card.choose ((8 * k - 2).choose (4 * k - 1) + 1) := by
+        rw [Finset.sum_mul]
         apply Finset.sum_lt_sum
         · intro σ _
           by_cases hne : (pvSeqs X σ (2 * k)).Nonempty
-          · rw [Finset.sum_mul]
-            calc ∑ y ∈ pvSeqs X σ (2 * k),
+          · calc ∑ y ∈ pvSeqs X σ (2 * k),
                 2 * X.card.choose (2 * k + 1) *
                   ((X.card - (4 * k + 1)).choose
                     ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) *
@@ -113,8 +116,7 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
         · obtain ⟨σ, hσ⟩ : ∃ σ : Bool, (pvSeqs X σ (2 * k)).Nonempty := by
             by_contra h2
             push_neg at h2
-            have hempty : ∀ σ : Bool, pvSeqs X σ (2 * k) = ∅ := fun σ ↦
-              Finset.not_nonempty_iff_eq_empty.mp (h2 σ)
+            have hempty : ∀ σ : Bool, pvSeqs X σ (2 * k) = ∅ := h2
             have hz : (∑ σ : Bool, ∑ y ∈ pvSeqs X σ (2 * k),
                 ∏ i : Fin (2 * k), #(pvSupp X y σ i)) = 0 := by
               apply Finset.sum_eq_zero; intro σ _
@@ -126,9 +128,9 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
                 have e := Nat.choose_mul (n := X.card) (k := (8 * k - 2).choose (4 * k - 1) + 1)
                   (s := 4 * k + 1) ht_le_s
                 have h1 := Nat.mul_le_mul_right
-                  ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) hcount
+                  (((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1)) hcount
                 rw [e] at h1
-                rw [show (pvSets X true (4 * k)).card + (pvSets X false (4 * k)).card *
+                rw [show ((pvSets X true (4 * k)).card + (pvSets X false (4 * k)).card) *
                     ((X.card - (4 * k + 1)).choose
                       ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) *
                     ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) =
@@ -136,7 +138,7 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
                     ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) *
                     ((X.card - (4 * k + 1)).choose
                       ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) by ring] at h1
-                exact Nat.le_of_mul_le_mul_right h1 (Nat.choose_pos.mpr (by omega))
+                exact Nat.le_of_mul_le_mul_right h1 (Nat.choose_pos (by omega))
               have h1 : 0 < X.card.choose (4 * k + 1) := Nat.choose_pos (by omega)
               have h2 : 0 < ((pvSets X true (4 * k)).card + (pvSets X false (4 * k)).card) *
                   ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) := h1.trans_le hTF
@@ -147,9 +149,12 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
             exact absurd (hz ▸ hsum_ge) (Nat.not_le.mpr hpos)
           obtain ⟨y, hy⟩ := hσ
           exact ⟨σ, Finset.mem_univ σ, by
-            rw [Finset.sum_mul]
-            apply Finset.sum_lt_sum_of_nonempty ⟨y, hy⟩
-            intro z hz; exact hcon σ z hz⟩
+            rw [show #(pvSeqs X σ (2 * k)) *
+                  X.card.choose ((8 * k - 2).choose (4 * k - 1) + 1) =
+                ∑ _y ∈ pvSeqs X σ (2 * k),
+                  X.card.choose ((8 * k - 2).choose (4 * k - 1) + 1) by
+              rw [Finset.sum_const, smul_eq_mul]]
+            exact Finset.sum_lt_sum_of_nonempty ⟨y, hy⟩ fun z hz ↦ hcon σ z hz⟩
       have hB : (∑ σ : Bool, ∑ y ∈ pvSeqs X σ (2 * k),
           2 * X.card.choose (2 * k + 1) *
             ((X.card - (4 * k + 1)).choose ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) *
@@ -191,7 +196,7 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
       have e := Nat.choose_mul (n := X.card) (k := (8 * k - 2).choose (4 * k - 1) + 1)
         (s := 4 * k + 1) ht_le_s
       have h1 := Nat.mul_le_mul_right
-        ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) hbig
+        (((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1)) hbig
       rw [e] at h1
       rw [show 2 * X.card.choose (2 * k + 1) *
           ((X.card - (4 * k + 1)).choose ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) *
@@ -201,15 +206,15 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
           ((8 * k - 2).choose (4 * k - 1) + 1).choose (4 * k + 1) *
           (∏ i : Fin (2 * k), #(pvSupp X y σ i))) *
           ((X.card - (4 * k + 1)).choose ((8 * k - 2).choose (4 * k - 1) + 1 - (4 * k + 1))) by ring] at h1
-      exact Nat.le_of_mul_le_mul_right h1 (Nat.choose_pos.mpr (by omega))
+      exact Nat.le_of_mul_le_mul_right h1 (Nat.choose_pos (by omega))
     have hdense_k : k ≤ (Finset.univ.filter fun i : Fin (2 * k) ↦
         X.card ≤ 2 ^ (40 * k) * #(pvSupp X y σ i)).card := by
       by_contra hlt
       push_neg at hlt
       have hnd : k + 1 ≤ (Finset.univ.filter fun i : Fin (2 * k) ↦
           ¬ X.card ≤ 2 ^ (40 * k) * #(pvSupp X y σ i)).card := by
-        have e := Finset.card_filter_add_card_filter_not (Finset.univ : Finset (Fin (2 * k)))
-          (fun i ↦ X.card ≤ 2 ^ (40 * k) * #(pvSupp X y σ i))
+        have e := Finset.card_filter_add_card_filter_not (s := Finset.univ)
+          (fun i : Fin (2 * k) ↦ X.card ≤ 2 ^ (40 * k) * #(pvSupp X y σ i))
         rw [Finset.card_univ, Fintype.card_fin] at e
         omega
       obtain ⟨S₀, hS₀, hS₀c⟩ := Finset.exists_subset_card_eq hnd
@@ -236,13 +241,13 @@ theorem porValtr_dense_support {k : ℕ} (hk : 3 ≤ k)
         have hB : ∏ i ∈ S₀ᶜ, #(pvSupp X y σ i) ≤ X.card ^ (k - 1) := by
           calc ∏ i ∈ S₀ᶜ, #(pvSupp X y σ i)
               ≤ ∏ _i ∈ S₀ᶜ, X.card := Finset.prod_le_prod fun i _ ↦ pvSupp_le_card y σ i
-            _ = X.card ^ ((S₀ᶜ).card) := Finset.prod_const
+            _ = X.card ^ ((S₀ᶜ).card) := Finset.prod_const _
             _ = X.card ^ (k - 1) := by
               congr 1
               rw [Finset.card_compl, Fintype.card_fin, hS₀c]; omega
         rw [hsplit]
         calc 2 ^ (40 * k * (k + 1)) *
-              (∏ i ∈ S₀, #(pvSupp X y σ i) * ∏ i ∈ S₀ᶜ, #(pvSupp X y σ i))
+              ((∏ i ∈ S₀, #(pvSupp X y σ i)) * ∏ i ∈ S₀ᶜ, #(pvSupp X y σ i))
             = (2 ^ (40 * k * (k + 1)) * ∏ i ∈ S₀, #(pvSupp X y σ i)) *
                 ∏ i ∈ S₀ᶜ, #(pvSupp X y σ i) := by ring
           _ ≤ (X.card - 1) ^ (k + 1) * X.card ^ (k - 1) := Nat.mul_le_mul hA hB

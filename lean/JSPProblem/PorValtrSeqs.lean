@@ -1,6 +1,7 @@
 import JSPProblem.PorValtrBase
 
 open Finset
+open scoped Nat
 
 noncomputable section
 /-! ### Counting infrastructure: `x`-ordered enumerations of caps and cups
@@ -138,9 +139,11 @@ lemma card_pvSeqs {X : Finset (Euc 2)} {σ : Bool} {m : ℕ} :
     have e2 : Finset.image (pvEnum b.1
         ((Finset.mem_powersetCard.mp (Finset.mem_filter.mp b.2).1).2))
         Finset.univ = b.1 := pvEnum_image _
-    rw [← e1, ← e2, hab]
+    rw [← e1, ← e2]
+    exact congrArg (fun f ↦ Finset.image f Finset.univ) hab
   unfold pvSeqs
-  rw [Finset.card_image_of_injective _ hinj, Finset.card_attach]
+  rw [@Finset.card_image_of_injective _ _ _ (Classical.decEq _) _ hinj,
+    Finset.card_attach]
 
 lemma pvSets_le {X : Finset (Euc 2)} {σ : Bool} {m : ℕ} :
     #(pvSets X σ m) ≤ X.card.choose (m + 1) := by
@@ -175,7 +178,7 @@ lemma pv_ncard_supp {X : Finset (Euc 2)} {m : ℕ}
     (supportOf y σ i ∩ (X : Set (Euc 2))).ncard = #(pvSupp X y σ i) := by
   have e : (supportOf y σ i ∩ ↑X : Set (Euc 2)) = ↑(pvSupp X y σ i) := by
     ext p
-    rw [Set.mem_inter_iff, Finset.mem_coe, mem_pvSupp]
+    rw [Set.mem_inter_iff, Finset.mem_coe, Finset.mem_coe, mem_pvSupp]
     exact and_comm
   rw [e, Set.ncard_coe_finset]
 
@@ -266,14 +269,15 @@ lemma pv_odd_mem_supp {k : ℕ} {X : Finset (Euc 2)} {σ : Bool}
       have e : pvEven z ⟨(i.val + 2 * k) % (2 * k + 1), Nat.mod_lt _ (by omega)⟩
           = z ⟨4 * k, by omega⟩ :=
         congrArg z (Fin.ext_iff.mpr (by
+          show 2 * ((i.val + 2 * k) % (2 * k + 1)) = 4 * k
           rw [hi0, Nat.zero_add, Nat.mod_eq_of_lt (by omega : 2 * k < 2 * k + 1)]
           omega))
       rw [e]
       have e0 : pvEven z ⟨i.val, by omega⟩ = z ⟨0, by omega⟩ :=
-        congrArg z (Fin.ext_iff.mpr (by omega))
+        congrArg z (Fin.ext_iff.mpr (by show 2 * i.val = 0; omega))
       rw [e0]
       have e1 : pvOdd z i = z ⟨1, by omega⟩ :=
-        congrArg z (Fin.ext_iff.mpr (by omega))
+        congrArg z (Fin.ext_iff.mpr (by show 2 * i.val + 1 = 1; omega))
       rw [e1, pvCross_cyc]
       exact hshape ⟨0, by omega⟩ ⟨1, by omega⟩ ⟨4 * k, by omega⟩
         (Fin.mk_lt_mk.mpr (by omega)) (Fin.mk_lt_mk.mpr (by omega))
@@ -281,6 +285,7 @@ lemma pv_odd_mem_supp {k : ℕ} {X : Finset (Euc 2)} {σ : Bool}
       have e : pvEven z ⟨(i.val + 2 * k) % (2 * k + 1), Nat.mod_lt _ (by omega)⟩
           = z ⟨2 * i.val - 2, by omega⟩ :=
         congrArg z (Fin.ext_iff.mpr (by
+          show 2 * ((i.val + 2 * k) % (2 * k + 1)) = 2 * i.val - 2
           have h : i.val + 2 * k = (i.val - 1) + (2 * k + 1) := by omega
           rw [h, Nat.add_mod_right,
             Nat.mod_eq_of_lt (by omega : i.val - 1 < 2 * k + 1)]
@@ -297,6 +302,7 @@ lemma pv_odd_mem_supp {k : ℕ} {X : Finset (Euc 2)} {σ : Bool}
       have e : pvEven z ⟨(i.val + 2) % (2 * k + 1), Nat.mod_lt _ (by omega)⟩
           = z ⟨2 * i.val + 4, by omega⟩ :=
         congrArg z (Fin.ext_iff.mpr (by
+          show 2 * ((i.val + 2) % (2 * k + 1)) = 2 * i.val + 4
           rw [Nat.mod_eq_of_lt (by omega : i.val + 2 < 2 * k + 1)]
           omega))
       rw [e]
@@ -315,15 +321,15 @@ lemma pv_odd_mem_supp {k : ℕ} {X : Finset (Euc 2)} {σ : Bool}
       have e : pvEven z ⟨(i.val + 2) % (2 * k + 1), Nat.mod_lt _ (by omega)⟩
           = z ⟨0, by omega⟩ :=
         congrArg z (Fin.ext_iff.mpr (by
+          show 2 * ((i.val + 2) % (2 * k + 1)) = 0
           have hi : i.val + 2 = 2 * k + 1 := by omega
-          rw [hi, Nat.mod_self]
-          omega))
+          rw [hi, Nat.mod_self, Nat.mul_zero]))
       rw [e]
       have e0 : pvEven z ⟨i.val + 1, by omega⟩ = z ⟨4 * k, by omega⟩ :=
-        congrArg z (Fin.ext_iff.mpr (by omega))
+        congrArg z (Fin.ext_iff.mpr (by show 2 * (i.val + 1) = 4 * k; omega))
       rw [e0]
       have e1 : pvOdd z i = z ⟨4 * k - 1, by omega⟩ :=
-        congrArg z (Fin.ext_iff.mpr (by omega))
+        congrArg z (Fin.ext_iff.mpr (by show 2 * i.val + 1 = 4 * k - 1; omega))
       rw [e1, pvCross_cyc]
       exact hshape ⟨0, by omega⟩ ⟨4 * k - 1, by omega⟩ ⟨4 * k, by omega⟩
         (Fin.mk_lt_mk.mpr (by omega)) (Fin.mk_lt_mk.mpr (by omega))
@@ -359,23 +365,23 @@ lemma pv_fiber_bound {k : ℕ} {X : Finset (Euc 2)} (hdx : DistinctX X)
       fun z₁ _ z₂ _ heq ↦ by
         have hev : pvEven z₁ = pvEven z₂ := congrArg Sigma.fst heq
         have hod : pvOdd z₁ = pvOdd z₂ :=
-          eq_of_heq (Sigma.mk.injEq.mp heq).2
+          eq_of_heq (Sigma.mk.inj_iff.mp heq).2
         funext t
         rcases Nat.mod_two_eq_zero_or_one t.val with hmod | hmod
         · have ht : t = ⟨2 * (t.val / 2), by have := t.isLt; omega⟩ :=
-            Fin.ext_iff.mpr (by omega)
+            Fin.ext_iff.mpr (by show t.val = 2 * (t.val / 2); omega)
           have e1 : z₁ t = pvEven z₁ ⟨t.val / 2, by have := t.isLt; omega⟩ :=
             congrArg z₁ ht
           have e2 : z₂ t = pvEven z₂ ⟨t.val / 2, by have := t.isLt; omega⟩ :=
             congrArg z₂ ht
-          rw [e1, e2, hev]
+          rw [e1, e2]; exact congrFun hev _
         · have ht : t = ⟨2 * (t.val / 2) + 1, by have := t.isLt; omega⟩ :=
-            Fin.ext_iff.mpr (by omega)
+            Fin.ext_iff.mpr (by show t.val = 2 * (t.val / 2) + 1; omega)
           have e1 : z₁ t = pvOdd z₁ ⟨t.val / 2, by have := t.isLt; omega⟩ :=
             congrArg z₁ ht
           have e2 : z₂ t = pvOdd z₂ ⟨t.val / 2, by have := t.isLt; omega⟩ :=
             congrArg z₂ ht
-          rw [e1, e2, hod])
+          rw [e1, e2]; exact congrFun hod _)
   refine hinj.trans ?_
   rw [Finset.card_sigma]
   simp only [Fintype.card_piFinset]
@@ -459,14 +465,15 @@ lemma pv_choose_count {X : Finset (Euc 2)}
     have e : (X.powersetCard s).bipartiteBelow (fun S G ↦ G ⊆ S) G =
         (X.powersetCard s).filter fun S ↦ G ⊆ S := rfl
     rw [e, pv_powersetCard_sup hGX hts hGt]
-  have key := Finset.card_mul_le_card_mul
+  have key := Finset.card_mul_le_card_mul (m := 1)
     (fun (S : Finset (Euc 2)) (G : Finset (Euc 2)) ↦ G ⊆ S)
     (fun S hS ↦ Finset.card_pos.mpr (by
       obtain ⟨G, hG, hGS⟩ := hmem S hS
-      exact ⟨G, Finset.mem_bipartiteAbove.mpr ⟨hG, hGS⟩⟩))
+      exact ⟨G, (Finset.mem_bipartiteAbove (fun (S : Finset (Euc 2)) (G : Finset (Euc 2)) ↦
+        G ⊆ S)).mpr ⟨hG, hGS⟩⟩))
     hbelow
   rw [mul_one, Finset.card_powersetCard, hGood] at key
-  exact key.trans (Nat.mul_le_mul_right _ (Finset.card_union_le _ _))
+  exact key.trans (Nat.mul_le_mul (Finset.card_union_le _ _) (le_refl _))
 
 /-- `(n - t + 1)^t` lower-bounds the descending factorial `n.descFactorial t`
 when `t ≤ n`. -/
@@ -481,10 +488,7 @@ lemma pow_le_descFactorial {n : ℕ} : ∀ {t : ℕ}, t ≤ n →
     rw [e, pow_succ', Nat.descFactorial_succ]
     have h1 : (n - j) ^ j ≤ n.descFactorial j :=
       (Nat.pow_le_pow_left (by omega : n - j ≤ n - j + 1) _).trans (ih (by omega))
-    have h2 : (n - j) * (n - j) ^ j ≤ (n - j) * n.descFactorial j :=
-      Nat.mul_le_mul (le_refl _) h1
-    convert h2 using 1
-    ring
+    exact Nat.mul_le_mul (le_refl _) h1
 
 /-- **Final arithmetic estimate**: the density threshold `2^{40k}` is so large
 that if `2^{40k·(k+1)} · ∏ |Tᵢ(y)| ≤ n^{k-1}(n-1)^{k+1}` then the counting
@@ -557,7 +561,8 @@ lemma pv_arith {k n s : ℕ} (hk : 1 ≤ k) (hn : 2 ^ (40 * k) ≤ n)
     calc 2 * n.choose (2 * k + 1) * s.descFactorial (4 * k + 1) * n ^ (k - 1) * (n - 1) ^ (k + 1)
         ≤ 2 * n ^ (2 * k + 1) * s ^ (4 * k + 1) * n ^ (k - 1) * n ^ (k + 1) := by
           gcongr
-      _ < _ := hpow
+      _ < 2 ^ (40 * k * (k + 1)) * (n - 4 * k) ^ (4 * k + 1) := hpow
+      _ ≤ _ := by gcongr
   rcases Nat.lt_or_ge _ _ with h | h
   · exact h
   · exact absurd (Nat.mul_le_mul (le_refl _) h) (Nat.not_le.mpr hmul)
@@ -645,88 +650,103 @@ lemma pv_supp_subseq {k : ℕ} {y : Fin (2 * k + 1) → Euc 2}
           (i := ⟨(e j).val, Nat.lt_succ_of_lt (hej j)⟩)
           (pvIdx_of_lt e j.isLt)]
       exact pv_supp_wrap_left hmono hshape (hej j) hp
-    · have hmod : (j.val + k) % (k + 1) = j.val - 1 := by
+    · have hm1 : j.val - 1 < k := by omega
+      have hmod : (j.val + k) % (k + 1) = j.val - 1 := by
         have h : j.val + k = (j.val - 1) + (k + 1) := by omega
         rw [h, Nat.add_mod_right, Nat.mod_eq_of_lt (by omega : j.val - 1 < k + 1)]
       rw [pvIdx_eval e y (a := (j.val + k) % (k + 1))
-          (i := ⟨(e ⟨j.val - 1, by omega⟩).val,
-            Nat.lt_succ_of_lt (hej ⟨j.val - 1, by omega⟩)⟩)
-          (by rw [hmod]; exact pvIdx_of_lt e (by omega : j.val - 1 < k)),
+          (i := ⟨(e ⟨j.val - 1, hm1⟩).val,
+            Nat.lt_succ_of_lt (hej ⟨j.val - 1, hm1⟩)⟩)
+          (by rw [hmod]; exact pvIdx_of_lt e hm1),
         pvIdx_eval e y (a := j.val)
           (i := ⟨(e j).val, Nat.lt_succ_of_lt (hej j)⟩)
           (pvIdx_of_lt e j.isLt)]
       exact pv_supp_left hmono hshape
-        (show (e ⟨j.val - 1, by omega⟩).val + 1 ≤ (e ⟨j.val, j.isLt⟩).val by
-          have h := hev ⟨j.val - 1, by omega⟩ ⟨j.val, j.isLt⟩
-            (Fin.mk_lt_mk.mpr (by omega)); omega)
+        (show (e ⟨j.val - 1, hm1⟩).val + 1 ≤ (e j).val by
+          have h : (e ⟨j.val - 1, hm1⟩).val < (e j).val :=
+            hev ⟨j.val - 1, hm1⟩ j (Fin.lt_iff_val_lt_val.mpr (by
+              show j.val - 1 < j.val; omega))
+          omega)
         (hej j) hp
   · -- `ε·cross(x_{j+1}, x_r, p) < 0` : `r = x_{j+2}` (or `x_0 = y_{e 0}` at `j = k-1`)
     show pvSgn σ * pvCross (y ⟨pvIdx e (j.val + 1), pvIdx_lt e _⟩)
         (y ⟨pvIdx e ((j.val + 2) % (k + 1)), pvIdx_lt e _⟩) p < 0
     by_cases hjk : j.val + 2 < k
-    · have hmod : (j.val + 2) % (k + 1) = j.val + 2 := Nat.mod_eq_of_lt (by omega)
+    · have hj1 : j.val + 1 < k := by omega
+      have hmod : (j.val + 2) % (k + 1) = j.val + 2 := Nat.mod_eq_of_lt (by omega)
       rw [pvIdx_eval e y (a := j.val + 1)
-          (i := ⟨(e ⟨j.val + 1, by omega⟩).val,
-            Nat.lt_succ_of_lt (hej ⟨j.val + 1, by omega⟩)⟩)
-          (pvIdx_of_lt e (by omega : j.val + 1 < k)),
+          (i := ⟨(e ⟨j.val + 1, hj1⟩).val,
+            Nat.lt_succ_of_lt (hej ⟨j.val + 1, hj1⟩)⟩)
+          (pvIdx_of_lt e hj1),
         pvIdx_eval e y (a := (j.val + 2) % (k + 1))
-          (i := ⟨(e ⟨j.val + 2, by omega⟩).val,
-            Nat.lt_succ_of_lt (hej ⟨j.val + 2, by omega⟩)⟩)
-          (by rw [hmod]; exact pvIdx_of_lt e (by omega : j.val + 2 < k))]
+          (i := ⟨(e ⟨j.val + 2, hjk⟩).val,
+            Nat.lt_succ_of_lt (hej ⟨j.val + 2, hjk⟩)⟩)
+          (by rw [hmod]; exact pvIdx_of_lt e hjk)]
       exact pv_supp_right hmono hshape (hej j)
         (show (e j).val + 2 ≤ 2 * k by
-          have h1 := hev ⟨j.val, j.isLt⟩ ⟨j.val + 1, by omega⟩
-            (Fin.mk_lt_mk.mpr (by omega))
-          have h2 := hev ⟨j.val + 1, by omega⟩ ⟨j.val + 2, by omega⟩
-            (Fin.mk_lt_mk.mpr (by omega))
-          have h3 := hej ⟨j.val + 2, by omega⟩
+          have h1 : (e j).val < (e ⟨j.val + 1, hj1⟩).val :=
+            hev j ⟨j.val + 1, hj1⟩
+              (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+          have h2 : (e ⟨j.val + 1, hj1⟩).val < (e ⟨j.val + 2, hjk⟩).val :=
+            hev ⟨j.val + 1, hj1⟩ ⟨j.val + 2, hjk⟩
+              (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+          have h3 : (e ⟨j.val + 2, hjk⟩).val < 2 * k := hej ⟨j.val + 2, hjk⟩
           omega)
-        (show (e j).val + 1 ≤ (e ⟨j.val + 1, by omega⟩).val by
-          have h := hev ⟨j.val, j.isLt⟩ ⟨j.val + 1, by omega⟩
-            (Fin.mk_lt_mk.mpr (by omega)); omega)
-        (show (e ⟨j.val + 1, by omega⟩).val + 1 ≤ (e ⟨j.val + 2, by omega⟩).val by
-          have h := hev ⟨j.val + 1, by omega⟩ ⟨j.val + 2, by omega⟩
-            (Fin.mk_lt_mk.mpr (by omega)); omega)
-        (Nat.le_of_lt (hej _)) hp
+        (show (e j).val + 1 ≤ (e ⟨j.val + 1, hj1⟩).val by
+          have h : (e j).val < (e ⟨j.val + 1, hj1⟩).val :=
+            hev j ⟨j.val + 1, hj1⟩
+              (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+          omega)
+        (show (e ⟨j.val + 1, hj1⟩).val + 1 ≤ (e ⟨j.val + 2, hjk⟩).val by
+          have h : (e ⟨j.val + 1, hj1⟩).val < (e ⟨j.val + 2, hjk⟩).val :=
+            hev ⟨j.val + 1, hj1⟩ ⟨j.val + 2, hjk⟩
+              (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+          omega)
+        (Nat.le_of_lt (hej ⟨j.val + 2, hjk⟩)) hp
     · rcases (by omega : j.val + 2 = k ∨ j.val + 2 = k + 1) with h | h
-      · have hmod : (j.val + 2) % (k + 1) = k := by
+      · have hj1 : j.val + 1 < k := by omega
+        have hmod : (j.val + 2) % (k + 1) = k := by
           rw [h]; exact Nat.mod_eq_of_lt (Nat.lt_succ_self k)
         rw [pvIdx_eval e y (a := (j.val + 2) % (k + 1))
             (i := ⟨2 * k, Nat.lt_succ_self _⟩)
             (by rw [hmod]; exact pvIdx_of_not_lt e (by omega : ¬ k < k)),
           pvIdx_eval e y (a := j.val + 1)
-            (i := ⟨(e ⟨j.val + 1, by omega⟩).val,
-              Nat.lt_succ_of_lt (hej ⟨j.val + 1, by omega⟩)⟩)
-            (pvIdx_of_lt e (by omega : j.val + 1 < k))]
+            (i := ⟨(e ⟨j.val + 1, hj1⟩).val,
+              Nat.lt_succ_of_lt (hej ⟨j.val + 1, hj1⟩)⟩)
+            (pvIdx_of_lt e hj1)]
         exact pv_supp_right hmono hshape (hej j)
           (show (e j).val + 2 ≤ 2 * k by
-            have h1 := hev ⟨j.val, j.isLt⟩ ⟨j.val + 1, by omega⟩
-              (Fin.mk_lt_mk.mpr (by omega))
-            have h3 := hej ⟨j.val + 1, by omega⟩
+            have h1 : (e j).val < (e ⟨j.val + 1, hj1⟩).val :=
+              hev j ⟨j.val + 1, hj1⟩
+                (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+            have h3 : (e ⟨j.val + 1, hj1⟩).val < 2 * k := hej ⟨j.val + 1, hj1⟩
             omega)
-          (show (e j).val + 1 ≤ (e ⟨j.val + 1, by omega⟩).val by
-            have h := hev ⟨j.val, j.isLt⟩ ⟨j.val + 1, by omega⟩
-              (Fin.mk_lt_mk.mpr (by omega)); omega)
-          (show (e ⟨j.val + 1, by omega⟩).val + 1 ≤ 2 * k by
-            have h := hej ⟨j.val + 1, by omega⟩; omega)
+          (show (e j).val + 1 ≤ (e ⟨j.val + 1, hj1⟩).val by
+            have h : (e j).val < (e ⟨j.val + 1, hj1⟩).val :=
+              hev j ⟨j.val + 1, hj1⟩
+                (Fin.lt_iff_val_lt_val.mpr (Nat.lt_succ_self _))
+            omega)
+          (show (e ⟨j.val + 1, hj1⟩).val + 1 ≤ 2 * k by
+            have h : (e ⟨j.val + 1, hj1⟩).val < 2 * k := hej ⟨j.val + 1, hj1⟩
+            omega)
           le_rfl hp
-      · have hmod : (j.val + 2) % (k + 1) = 0 := by
+      · have hk0 : 0 < k := by omega
+        have hmod : (j.val + 2) % (k + 1) = 0 := by
           rw [h]; exact Nat.mod_self _
         rw [pvIdx_eval e y (a := (j.val + 2) % (k + 1))
-            (i := ⟨(e ⟨0, by omega⟩).val,
-              Nat.lt_succ_of_lt (hej ⟨0, by omega⟩)⟩)
-            (by rw [hmod]; exact pvIdx_of_lt e (by omega : 0 < k)),
+            (i := ⟨(e ⟨0, hk0⟩).val,
+              Nat.lt_succ_of_lt (hej ⟨0, hk0⟩)⟩)
+            (by rw [hmod]; exact pvIdx_of_lt e hk0),
           pvIdx_eval e y (a := j.val + 1) (i := ⟨2 * k, Nat.lt_succ_self _⟩)
             (pvIdx_of_not_lt e (by omega : ¬ j.val + 1 < k))]
         rcases Nat.eq_zero_or_pos j.val with hj0 | hj0
         · -- `j = 0` forces `k = 1`: the third support condition is the same
           -- wraparound chord `y_{2k} y_{e 0}` as the second, so
           -- `pv_supp_wrap_left` applies.
-          have hje : (⟨0, by omega⟩ : Fin k) = j := Fin.ext hj0.symm
+          have hje : (⟨0, hk0⟩ : Fin k) = j := Fin.ext hj0.symm
           rw [hje]
           exact pv_supp_wrap_left hmono hshape (hej j) hp
         · exact pv_supp_wrap_right hmono hshape (hej j)
-            (show (e ⟨0, by omega⟩).val < (e j).val from
-              hev ⟨0, by omega⟩ j (Fin.mk_lt_mk.mpr hj0)) hp
+            (hev ⟨0, hk0⟩ j (Fin.lt_iff_val_lt_val.mpr hj0)) hp
 
 end
