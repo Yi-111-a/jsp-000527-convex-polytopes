@@ -5,7 +5,7 @@ prize_ready: true
 github_owner: Yi-111-a
 lean_repository: https://github.com/Yi-111-a/jsp-000527-convex-polytopes
 branch: main
-commit_sha: ""
+commit_sha: "5d4e1d046a8643b04733ef1e52f6cfa9e14d5ae2"
 headline_theorems:
   - es_three_subexponential
   - convexSubset_forcing_points_exp
