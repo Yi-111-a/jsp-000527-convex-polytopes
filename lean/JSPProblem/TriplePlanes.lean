@@ -40,10 +40,12 @@ private theorem collectionConvex_comp {k k₀ : ℕ} {X : Fin k₀ → Finset (E
     (hconv : CollectionConvex X) (σ : Fin k ↪o Fin k₀) :
     CollectionConvex (X ∘ σ) := by
   intro i
-  refine Disjoint.mono_right ?_ (hconv (σ i))
-  rintro z ⟨j, hj, hzj⟩
+  refine Disjoint.mono_right (convexHull_mono ?_) (hconv (σ i))
+  intro z hz
+  obtain ⟨j, hj⟩ := Set.mem_iUnion.mp hz
+  obtain ⟨hji, hzj⟩ := Set.mem_iUnion.mp hj
   exact Set.mem_iUnion.mpr
-    ⟨σ j, Set.mem_iUnion.mpr ⟨σ.injective.ne hj, hzj⟩⟩
+    ⟨σ j, Set.mem_iUnion.mpr ⟨σ.injective.ne hji, hzj⟩⟩
 
 /-- The `g₀` step: a single member `Y b` of a collection in convex position
 can be strictly separated from the convex hull of the rest.  The functional
@@ -60,9 +62,11 @@ private theorem exists_sep_single {k : ℕ} {Y : Fin k → Finset (Euc 3)}
       ((Finset.univ.erase b).biUnion Y : Set (Euc 3)) := by
     ext z
     constructor
-    · rintro ⟨j, hj, hzj⟩
+    · intro hz
+      obtain ⟨j, hj⟩ := Set.mem_iUnion.mp hz
+      obtain ⟨hjb, hzj⟩ := Set.mem_iUnion.mp hj
       exact Finset.mem_coe.mpr (Finset.mem_biUnion.mpr
-        ⟨j, Finset.mem_erase.mpr ⟨hj, Finset.mem_univ j⟩,
+        ⟨j, Finset.mem_erase.mpr ⟨hjb, Finset.mem_univ j⟩,
           Finset.mem_coe.mp hzj⟩)
     · intro hz
       obtain ⟨j, hj, hzj⟩ := Finset.mem_biUnion.mp (Finset.mem_coe.mp hz)
@@ -166,12 +170,10 @@ theorem exists_triple_planes
     {x : Fin k₀ → Euc 3} (hx : ∀ i, x i ∈ X i)
     {σ : Fin k ↪o Fin k₀}
     (hsplit : ∀ a b c : Fin k, a ≤ b → b ≤ c →
-      Disjoint (convexHull ℝ ((Finset.image (x∘σ)
-        (Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c))) : Finset (Fin k))
-          : Set (Euc 3)))
-        (convexHull ℝ ((Finset.image (x∘σ)
-        (Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i)) : Finset (Fin k))
-          : Set (Euc 3)))))
+      Disjoint (convexHull ℝ ((Finset.image (x ∘ σ)
+        (Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c)))) : Set (Euc 3)))
+        (convexHull ℝ ((Finset.image (x ∘ σ)
+          (Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i))) : Set (Euc 3))))
     {a b c : Fin k} (hab : a < b) (hbc : b < c) (hck : c.val + 1 < k) :
     ∃ g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ, ∃ c₀ c₁ c₂ : ℝ,
       g₀ ≠ 0 ∧ g₁ ≠ 0 ∧ g₂ ≠ 0 ∧

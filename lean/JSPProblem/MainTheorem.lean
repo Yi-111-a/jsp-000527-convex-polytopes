@@ -246,457 +246,6 @@ end CombinatorialHelpers
 
 section GeometricInfrastructure
 
-
-private abbrev supportOf {k : ℕ} (x : Fin (k + 1) → Euc 2) (σ : Bool) (i : Fin k) :
-    Set (Euc 2) :=
-  SupportRegion
-    (x ⟨(i.val + k) % (k + 1), Nat.mod_lt _ (by omega)⟩)
-    (x ⟨i.val, by omega⟩)
-    (x ⟨i.val + 1, by omega⟩)
-    (x ⟨(i.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩) σ
-/-- Twice the signed area of the oriented triangle `u v w` (the same quantity
-as `CupsCaps.cross`, which is private there). -/
-private def pvCross (u v w : Euc 2) : ℝ :=
-  (v 0 - u 0) * (w 1 - u 1) - (v 1 - u 1) * (w 0 - u 0)
-
-/-- The slope of the directed segment `u v`. -/
-private noncomputable def pvSl (u v : Euc 2) : ℝ := (v 1 - u 1) / (v 0 - u 0)
-
-/-- The height at abscissa `t` of the line through `u` and `v`. -/
-private noncomputable def pvHgt (u v : Euc 2) (t : ℝ) : ℝ :=
-  u 1 + pvSl u v * (t - u 0)
-
-/-- The sign distinguishing cap (`σ = true`, `ε = 1`) from cup
-(`σ = false`, `ε = -1`) in the uniform statements. -/
-private def pvSgn (σ : Bool) : ℝ := if σ then 1 else -1
-
-private lemma pvCross_self (u v : Euc 2) : pvCross u u v = 0 := by
-  unfold pvCross; ring
-
-private lemma pvCross_left (u v : Euc 2) : pvCross u v u = 0 := by
-  unfold pvCross; ring
-
-private lemma pvCross_right (u v : Euc 2) : pvCross u v v = 0 := by
-  unfold pvCross; ring
-
-private lemma pvCross_swap (u v w : Euc 2) : pvCross v u w = -pvCross u v w := by
-  unfold pvCross; ring
-
-private lemma pvCross_cyc (u v w : Euc 2) : pvCross u v w = pvCross v w u := by
-  unfold pvCross; ring
-
-private lemma mem_LeftOf_iff (u v p : Euc 2) : p ∈ LeftOf u v ↔ 0 < pvCross u v p :=
-  Iff.rfl
-
-private lemma mem_RightOf_iff (u v p : Euc 2) : p ∈ RightOf u v ↔ pvCross u v p < 0 := by
-  show 0 < pvCross v u p ↔ pvCross u v p < 0
-  rw [pvCross_swap]; constructor <;> intro h <;> linarith
-
-/-- Membership in a support region, expressed uniformly in `σ` as sign
-conditions on `pvCross`. -/
-private lemma mem_supportOf_iff {k : ℕ} {x : Fin (k + 1) → Euc 2} {σ : Bool}
-    {j : Fin k} {p : Euc 2} :
-    p ∈ supportOf x σ j ↔
-      0 < pvSgn σ * pvCross (x ⟨j.val, by omega⟩) (x ⟨j.val + 1, by omega⟩) p ∧
-      pvSgn σ * pvCross (x ⟨(j.val + k) % (k + 1), Nat.mod_lt _ (by omega)⟩)
-        (x ⟨j.val, by omega⟩) p < 0 ∧
-      pvSgn σ * pvCross (x ⟨j.val + 1, by omega⟩)
-        (x ⟨(j.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩) p < 0 := by
-  cases σ
-  · -- `σ = false` (cup): region = `RightOf e ∩ LeftOf l ∩ LeftOf r`
-    have e : supportOf x false j =
-        (RightOf (x ⟨j.val, by omega⟩) (x ⟨j.val + 1, by omega⟩) ∩
-          LeftOf (x ⟨(j.val + k) % (k + 1), Nat.mod_lt _ (by omega)⟩)
-            (x ⟨j.val, by omega⟩)) ∩
-        LeftOf (x ⟨j.val + 1, by omega⟩)
-          (x ⟨(j.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩) := rfl
-    rw [e, Set.mem_inter_iff, Set.mem_inter_iff, mem_RightOf_iff,
-      mem_LeftOf_iff, mem_LeftOf_iff, show pvSgn false = (-1 : ℝ) from rfl]
-    exact ⟨fun h ↦ ⟨by linarith [h.1.1], by linarith [h.1.2], by linarith [h.2]⟩,
-      fun h ↦ ⟨⟨by linarith [h.1], by linarith [h.2.1]⟩, by linarith [h.2.2]⟩⟩
-  · -- `σ = true` (cap): region = `LeftOf e ∩ RightOf l ∩ RightOf r`
-    have e : supportOf x true j =
-        (LeftOf (x ⟨j.val, by omega⟩) (x ⟨j.val + 1, by omega⟩) ∩
-          RightOf (x ⟨(j.val + k) % (k + 1), Nat.mod_lt _ (by omega)⟩)
-            (x ⟨j.val, by omega⟩)) ∩
-        RightOf (x ⟨j.val + 1, by omega⟩)
-          (x ⟨(j.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩) := rfl
-    rw [e, Set.mem_inter_iff, Set.mem_inter_iff, mem_LeftOf_iff,
-      mem_RightOf_iff, mem_RightOf_iff, show pvSgn true = (1 : ℝ) from rfl]
-    exact ⟨fun h ↦ ⟨by linarith [h.1.1], by linarith [h.1.2], by linarith [h.2]⟩,
-      fun h ↦ ⟨⟨by linarith [h.1], by linarith [h.2.1]⟩, by linarith [h.2.2]⟩⟩
-
-/-- The signed area expressed through the height function of the edge line. -/
-private lemma pvCross_eq_hgt {u v : Euc 2} (h : v 0 ≠ u 0) (p : Euc 2) :
-    pvCross u v p = (v 0 - u 0) * (p 1 - pvHgt u v (p 0)) := by
-  unfold pvCross pvHgt pvSl
-  field_simp
-  ring
-
-/-- The height function recomputed at the right endpoint. -/
-private lemma pvHgt_at_right {u v : Euc 2} (h : v 0 ≠ u 0) (t : ℝ) :
-    pvHgt u v t = v 1 + pvSl u v * (t - v 0) := by
-  unfold pvHgt pvSl
-  field_simp
-  ring
-
-/-- The height function is affine in `t` with slope `pvSl u v`. -/
-private lemma pvHgt_affine (u v : Euc 2) (t t₀ : ℝ) :
-    pvHgt u v t = pvHgt u v t₀ + pvSl u v * (t - t₀) := by
-  unfold pvHgt; ring
-
-/-- From the cup/cap condition: in a cap every increasing-`x` triple has
-negative signed area (and the mirror statement for cups). -/
-private lemma pvCross_neg_of_isCap {P : Finset (Euc 2)} (hP : IsCap P)
-    {u v w : Euc 2} (hu : u ∈ P) (hv : v ∈ P) (hw : w ∈ P)
-    (huv : u 0 < v 0) (hvw : v 0 < w 0) : pvCross u v w < 0 := by
-  obtain ⟨a, b, hvb, hbelow⟩ := hP v hv
-  have hu' : u 1 < a * u 0 + b := hbelow u hu (fun e ↦ (by rw [e] at huv; exact lt_irrefl _ huv))
-  have hw' : w 1 < a * w 0 + b := hbelow w hw (fun e ↦ (by rw [e] at hvw; exact lt_irrefl _ hvw))
-  have h1 : w 1 - v 1 < a * (w 0 - v 0) := by linarith
-  have h2 : v 1 - u 1 > a * (v 0 - u 0) := by linarith
-  have e : pvCross u v w = (v 0 - u 0) * (w 1 - v 1) - (v 1 - u 1) * (w 0 - v 0) := by
-    unfold pvCross; ring
-  have hstep : pvCross u v w <
-      (v 0 - u 0) * (a * (w 0 - v 0)) - (a * (v 0 - u 0)) * (w 0 - v 0) := by
-    rw [e]
-    apply sub_lt_sub
-    · exact mul_lt_mul_of_pos_left h1 (sub_pos.mpr huv)
-    · exact mul_lt_mul_of_pos_right h2 (sub_pos.mpr hvw)
-  have heq : (v 0 - u 0) * (a * (w 0 - v 0)) - (a * (v 0 - u 0)) * (w 0 - v 0) = 0 := by ring
-  linarith
-
-/-- The mirror statement for cups: increasing-`x` triples have positive
-signed area. -/
-private lemma pvCross_pos_of_isCup {P : Finset (Euc 2)} (hP : IsCup P)
-    {u v w : Euc 2} (hu : u ∈ P) (hv : v ∈ P) (hw : w ∈ P)
-    (huv : u 0 < v 0) (hvw : v 0 < w 0) : 0 < pvCross u v w := by
-  obtain ⟨a, b, hvb, habove⟩ := hP v hv
-  have hu' : u 1 > a * u 0 + b := habove u hu (fun e ↦ (by rw [e] at huv; exact lt_irrefl _ huv))
-  have hw' : w 1 > a * w 0 + b := habove w hw (fun e ↦ (by rw [e] at hvw; exact lt_irrefl _ hvw))
-  have h1 : w 1 - v 1 > a * (w 0 - v 0) := by linarith
-  have h2 : v 1 - u 1 < a * (v 0 - u 0) := by linarith
-  have e : pvCross u v w = (v 0 - u 0) * (w 1 - v 1) - (v 1 - u 1) * (w 0 - v 0) := by
-    unfold pvCross; ring
-  have hstep : pvCross u v w >
-      (v 0 - u 0) * (a * (w 0 - v 0)) - (a * (v 0 - u 0)) * (w 0 - v 0) := by
-    rw [e]
-    apply sub_lt_sub
-    · exact mul_lt_mul_of_pos_left h1 (sub_pos.mpr huv)
-    · exact mul_lt_mul_of_pos_right h2 (sub_pos.mpr hvw)
-  have heq : (v 0 - u 0) * (a * (w 0 - v 0)) - (a * (v 0 - u 0)) * (w 0 - v 0) = 0 := by ring
-  linarith
-
-/-- The signed area factors through a slope difference (chord vs. first
-edge). -/
-private lemma pvCross_eq_mid {u v w : Euc 2} (huv : u 0 < v 0) (huw : u 0 < w 0) :
-    pvCross u v w = (v 0 - u 0) * (w 0 - u 0) * (pvSl u w - pvSl u v) := by
-  unfold pvCross pvSl
-  have h1 : v 0 - u 0 ≠ 0 := ne_of_gt (sub_pos.mpr huv)
-  have h2 : w 0 - u 0 ≠ 0 := ne_of_gt (sub_pos.mpr huw)
-  field_simp
-
-/-- The signed area factors through a slope difference (second edge vs.
-chord). -/
-private lemma pvCross_eq_left {u v w : Euc 2} (hvw : v 0 < w 0) (huw : u 0 < w 0) :
-    pvCross u v w = (w 0 - v 0) * (w 0 - u 0) * (pvSl v w - pvSl u w) := by
-  unfold pvCross pvSl
-  have h1 : w 0 - v 0 ≠ 0 := ne_of_gt (sub_pos.mpr hvw)
-  have h2 : w 0 - u 0 ≠ 0 := ne_of_gt (sub_pos.mpr huw)
-  field_simp
-  ring
-
-/-- Cancelling a positive middle factor inside a `pvSgn`-scaled product. -/
-private lemma pv_mul_neg_of_pos_factor {ε P c : ℝ} (hP : 0 < P) (h : ε * (P * c) < 0) :
-    ε * c < 0 := by
-  rw [mul_left_comm] at h
-  exact Right.neg_of_mul_neg_right h hP.le
-
-/-- Cancelling a positive middle factor inside a `pvSgn`-scaled product,
-`0 <` version. -/
-private lemma pv_mul_pos_of_pos_factor {ε P c : ℝ} (hP : 0 < P) (h : 0 < ε * (P * c)) :
-    0 < ε * c := by
-  rw [mul_left_comm] at h
-  exact pos_of_mul_pos_right h hP.le
-
-/-- The cup/cap shape condition on a left-to-right chain, in uniform
-`pvSgn`-scaled form: every increasing triple has interior-side signed
-area. -/
-private def pvShaped {k : ℕ} (x : Fin (k + 1) → Euc 2) (σ : Bool) : Prop :=
-  ∀ a b c : Fin (k + 1), a < b → b < c → pvSgn σ * pvCross (x a) (x b) (x c) < 0
-
-private lemma pvShaped_of_capOrCup {k : ℕ} {x : Fin (k + 1) → Euc 2}
-    (hmono : StrictMono fun i ↦ (x i) 0) {σ : Bool}
-    (h : if σ then IsCap (Finset.image x Finset.univ)
-         else IsCup (Finset.image x Finset.univ)) : pvShaped x σ := by
-  intro a b c hab hbc
-  have mem : ∀ t : Fin (k + 1), x t ∈ Finset.image x Finset.univ :=
-    fun t ↦ Finset.mem_image.mpr ⟨t, Finset.mem_univ t, rfl⟩
-  cases σ
-  · -- `σ = false` (cup)
-    have h' : IsCup (Finset.image x Finset.univ) := h
-    have hc := pvCross_pos_of_isCup h' (mem a) (mem b) (mem c) (hmono hab)
-      (hmono hbc)
-    rw [show pvSgn false = (-1 : ℝ) from rfl]
-    linarith
-  · -- `σ = true` (cap)
-    have h' : IsCap (Finset.image x Finset.univ) := h
-    have hc := pvCross_neg_of_isCap h' (mem a) (mem b) (mem c) (hmono hab)
-      (hmono hbc)
-    rw [show pvSgn true = (1 : ℝ) from rfl]
-    linarith
-
-/-- In a `pvShaped` chain the `pvSgn`-scaled edge slopes strictly decrease
-with the edge index (concavity of cap / convexity of cup slopes). -/
-private lemma pvSl_edge {k : ℕ} {x : Fin (k + 1) → Euc 2}
-    (hmono : StrictMono fun i ↦ (x i) 0) {σ : Bool} (hshape : pvShaped x σ)
-    {a b : ℕ} (hab : a < b) (hb : b + 1 ≤ k) :
-    pvSgn σ * pvSl (x ⟨b, by omega⟩) (x ⟨b + 1, by omega⟩) <
-      pvSgn σ * pvSl (x ⟨a, by omega⟩) (x ⟨a + 1, by omega⟩) := by
-  set u := x ⟨a, by omega⟩ with hu
-  set u' := x ⟨a + 1, by omega⟩ with hu'
-  set z := x ⟨b, by omega⟩ with hz
-  set w := x ⟨b + 1, by omega⟩ with hw
-  have muu' : (u : Euc 2) 0 < (u' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-  have muw : (u : Euc 2) 0 < (w : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-  have mzw : (z : Euc 2) 0 < (w : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-  have h1 : pvSgn σ * pvCross u u' w < 0 :=
-    hshape ⟨a, by omega⟩ ⟨a + 1, by omega⟩ ⟨b + 1, by omega⟩
-      (Fin.lt_iff_val_lt_val.mpr (by omega)) (Fin.lt_iff_val_lt_val.mpr (by omega))
-  have key1 : pvSgn σ * (pvSl u w - pvSl u u') < 0 := by
-    rw [pvCross_eq_mid muu' muw] at h1
-    exact pv_mul_neg_of_pos_factor (mul_pos (sub_pos.mpr muu') (sub_pos.mpr muw)) h1
-  have h2 : pvSgn σ * pvCross u z w < 0 :=
-    hshape ⟨a, by omega⟩ ⟨b, by omega⟩ ⟨b + 1, by omega⟩
-      (Fin.lt_iff_val_lt_val.mpr hab) (Fin.lt_iff_val_lt_val.mpr (by omega))
-  have key2 : pvSgn σ * (pvSl z w - pvSl u w) < 0 := by
-    rw [pvCross_eq_left mzw muw] at h2
-    exact pv_mul_neg_of_pos_factor (mul_pos (sub_pos.mpr mzw) (sub_pos.mpr muw)) h2
-  linarith
-
-/-- The first defining half-plane of a support region: `p` is strictly on
-the interior side of its own edge line. -/
-private lemma mem_supportOf_inner {k : ℕ} {x : Fin (k + 1) → Euc 2} {σ : Bool}
-    {j : Fin k} {p : Euc 2} (hp : p ∈ supportOf x σ j) :
-    0 < pvSgn σ * pvCross (x ⟨j.val, by omega⟩) (x ⟨j.val + 1, by omega⟩) p :=
-  (mem_supportOf_iff.mp hp).1
-
-/-- The second defining half-plane, specialized to `j ≥ 1`: `p` is on the
-interior side of the previous edge line `x_{j-1} xⱼ`. -/
-private lemma mem_supportOf_left {k : ℕ} {x : Fin (k + 1) → Euc 2} {σ : Bool}
-    {j : Fin k} {p : Euc 2} (hp : p ∈ supportOf x σ j) (hj : 1 ≤ j.val) :
-    pvSgn σ * pvCross (x ⟨j.val - 1, by omega⟩) (x ⟨j.val, by omega⟩) p < 0 := by
-  have h := (mem_supportOf_iff.mp hp).2.1
-  have e : (⟨(j.val + k) % (k + 1), Nat.mod_lt _ (by omega)⟩ : Fin (k + 1)) =
-      ⟨j.val - 1, by omega⟩ :=
-    Fin.ext_iff.mpr (show (j.val + k) % (k + 1) = j.val - 1 by
-      rw [show j.val + k = j.val - 1 + (k + 1) by omega, Nat.add_mod_right,
-        Nat.mod_eq_of_lt (by omega)])
-  rw [e] at h
-  exact h
-
-/-- The third defining half-plane, specialized to `j + 2 ≤ k`: `p` is on the
-interior side of the next edge line `x_{j+1} x_{j+2}`. -/
-private lemma mem_supportOf_right {k : ℕ} {x : Fin (k + 1) → Euc 2} {σ : Bool}
-    {j : Fin k} {p : Euc 2} (hp : p ∈ supportOf x σ j) (hj : j.val + 2 ≤ k) :
-    pvSgn σ * pvCross (x ⟨j.val + 1, by omega⟩) (x ⟨j.val + 2, by omega⟩) p < 0 := by
-  have h := (mem_supportOf_iff.mp hp).2.2
-  have e : (⟨(j.val + 2) % (k + 1), Nat.mod_lt _ (by omega)⟩ : Fin (k + 1)) =
-      ⟨j.val + 2, by omega⟩ := Fin.ext_iff.mpr (Nat.mod_eq_of_lt (by omega))
-  rw [e] at h
-  exact h
-
-/-- **Key geometric lemma**: in a shaped left-to-right chain, the support
-region `Tⱼ` lies strictly on the interior side of every *other* edge line
-`xᵢxᵢ₊₁`.
-
-For `i < j` the argument is: `p ∈ Tⱼ` lies below (in `ε`-sense) the previous
-edge line `x_{j-1}xⱼ` and above the own edge line `xⱼxⱼ₊₁`; since
-`ε·(s_{j-1} - sⱼ) > 0` the two lines meet strictly left of `p`, i.e.
-`xⱼ₀ < p₀`.  The line `xᵢxᵢ₊₁` passes above `xⱼ` and has larger scaled slope
-than `x_{j-1}xⱼ`, so it dominates `x_{j-1}xⱼ`'s height on all of
-`[xⱼ₀, p₀]` — in particular it is above `p`.  The case `i > j` is the mirror
-image. -/
-private theorem pv_region_inner_side {k : ℕ} {x : Fin (k + 1) → Euc 2}
-    (hmono : StrictMono fun i ↦ (x i) 0) {σ : Bool} (hshape : pvShaped x σ)
-    {i j : Fin k} (hij : i ≠ j) {p : Euc 2} (hp : p ∈ supportOf x σ j) :
-    pvSgn σ * pvCross (x ⟨i.val, by omega⟩) (x ⟨i.val + 1, by omega⟩) p < 0 := by
-  have hA : 0 < pvSgn σ * pvCross (x ⟨j.val, by omega⟩) (x ⟨j.val + 1, by omega⟩) p :=
-    (mem_supportOf_iff.mp hp).1
-  rcases lt_trichotomy i.val j.val with hlt | heq | hgt
-  · -- `i < j`: the previous edge `x_{j-1} xⱼ` bounds `Tⱼ` from below
-    have hB : pvSgn σ * pvCross (x ⟨j.val - 1, by omega⟩) (x ⟨j.val, by omega⟩) p < 0 :=
-      mem_supportOf_left hp (by omega)
-    by_cases hjj : i.val + 1 = j.val
-    · -- the previous edge IS the `i`-th edge
-      have e1 : (⟨i.val, by omega⟩ : Fin (k + 1)) = ⟨j.val - 1, by omega⟩ :=
-        Fin.ext_iff.mpr (show i.val = j.val - 1 by omega)
-      have e2 : (⟨i.val + 1, by omega⟩ : Fin (k + 1)) = ⟨j.val, by omega⟩ :=
-        Fin.ext_iff.mpr (show i.val + 1 = j.val by omega)
-      rw [e1, e2]
-      exact hB
-    · -- `i + 1 < j`: apex bound then height domination
-      set u := x ⟨i.val, by omega⟩ with hu
-      set u' := x ⟨i.val + 1, by omega⟩ with hu'
-      set z := x ⟨j.val - 1, by omega⟩ with hz
-      set w := x ⟨j.val, by omega⟩ with hw
-      set w' := x ⟨j.val + 1, by omega⟩ with hw'
-      have hzw : (z : Euc 2) 0 < (w : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hww' : (w : Euc 2) 0 < (w' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have huu' : (u : Euc 2) 0 < (u' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hB1 : pvSgn σ * (p 1 - pvHgt z w (p 0)) < 0 := by
-        rw [pvCross_eq_hgt (ne_of_gt hzw)] at hB
-        exact pv_mul_neg_of_pos_factor (sub_pos.mpr hzw) hB
-      have hA1 : 0 < pvSgn σ * (p 1 - pvHgt w w' (p 0)) := by
-        rw [pvCross_eq_hgt (ne_of_gt hww')] at hA
-        exact pv_mul_pos_of_pos_factor (sub_pos.mpr hww') hA
-      -- wedge bound: `p` is strictly to the right of the apex `w`
-      have hpx : (w : Euc 2) 0 < p 0 := by
-        have hB1w : pvSgn σ * (p 1 - (w 1 + pvSl z w * (p 0 - w 0))) < 0 := by
-          have h := hB1
-          rw [pvHgt_at_right (ne_of_gt hzw)] at h
-          exact h
-        have hA1w : 0 < pvSgn σ * (p 1 - (w 1 + pvSl w w' * (p 0 - w 0))) := hA1
-        have hsl : 0 < pvSgn σ * (pvSl z w - pvSl w w') := by
-          have h' := pvSl_edge hmono hshape (show j.val - 1 < j.val by omega)
-            (show j.val + 1 ≤ k by omega)
-          have e : (⟨j.val - 1 + 1, by omega⟩ : Fin (k + 1)) = ⟨j.val, by omega⟩ :=
-            Fin.ext_iff.mpr (show j.val - 1 + 1 = j.val by omega)
-          rw [e] at h'
-          have h : pvSgn σ * pvSl w w' < pvSgn σ * pvSl z w := h'
-          linarith
-        have hd : 0 < pvSgn σ * (pvSl z w - pvSl w w') * (p 0 - w 0) := by
-          have e : pvSgn σ * (pvSl z w - pvSl w w') * (p 0 - w 0) =
-              pvSgn σ * (p 1 - (w 1 + pvSl w w' * (p 0 - w 0))) -
-              pvSgn σ * (p 1 - (w 1 + pvSl z w * (p 0 - w 0))) := by ring
-          rw [e]
-          linarith
-        exact sub_pos.mp (pos_of_mul_pos_right hd hsl.le)
-      -- domination: the line `u u'` stays strictly above `z w`'s height on
-      -- `[w₀, p₀]`
-      have hdom : 0 < pvSgn σ * (pvHgt u u' (p 0) - pvHgt z w (p 0)) := by
-        rw [pvHgt_affine u u' (p 0) (w 0), pvHgt_at_right (ne_of_gt hzw)]
-        have hbase : 0 < pvSgn σ * (pvHgt u u' (w 0) - w 1) := by
-          have hc : pvSgn σ * pvCross u u' w < 0 :=
-            hshape ⟨i.val, by omega⟩ ⟨i.val + 1, by omega⟩ ⟨j.val, by omega⟩
-              (Fin.lt_iff_val_lt_val.mpr (by omega)) (Fin.lt_iff_val_lt_val.mpr (by omega))
-          rw [pvCross_eq_hgt (ne_of_gt huu')] at hc
-          have hlt' := pv_mul_neg_of_pos_factor (sub_pos.mpr huu') hc
-          linarith
-        have hslope : 0 < pvSgn σ * (pvSl u u' - pvSl z w) := by
-          have h' := pvSl_edge hmono hshape (show i.val < j.val - 1 by omega)
-            (show j.val - 1 + 1 ≤ k by omega)
-          have e : (⟨j.val - 1 + 1, by omega⟩ : Fin (k + 1)) = ⟨j.val, by omega⟩ :=
-            Fin.ext_iff.mpr (show j.val - 1 + 1 = j.val by omega)
-          rw [e] at h'
-          have h : pvSgn σ * pvSl z w < pvSgn σ * pvSl u u' := h'
-          linarith
-        have hprod : 0 ≤ pvSgn σ * (pvSl u u' - pvSl z w) * (p 0 - w 0) :=
-          mul_nonneg hslope.le (sub_nonneg.mpr hpx.le)
-        have e : pvSgn σ * (pvHgt u u' (w 0) + pvSl u u' * (p 0 - w 0) -
-            (w 1 + pvSl z w * (p 0 - w 0))) =
-            pvSgn σ * (pvHgt u u' (w 0) - w 1) +
-              pvSgn σ * (pvSl u u' - pvSl z w) * (p 0 - w 0) := by ring
-        rw [e]
-        linarith
-      -- assemble: `ε·(p₁ - hᵢ(p₀)) < 0`, then unscale
-      have key : pvSgn σ * (p 1 - pvHgt u u' (p 0)) < 0 := by
-        have e : pvSgn σ * (p 1 - pvHgt u u' (p 0)) =
-            pvSgn σ * (p 1 - pvHgt z w (p 0)) -
-              pvSgn σ * (pvHgt u u' (p 0) - pvHgt z w (p 0)) := by ring
-        rw [e]
-        linarith
-      rw [pvCross_eq_hgt (ne_of_gt huu')]
-      have e : pvSgn σ * ((u' 0 - u 0) * (p 1 - pvHgt u u' (p 0))) =
-          (u' 0 - u 0) * (pvSgn σ * (p 1 - pvHgt u u' (p 0))) := by ring
-      rw [e]
-      exact mul_neg_of_pos_of_neg (sub_pos.mpr huu') key
-  · -- `i = j` is excluded
-    exact absurd (Fin.ext_iff.mpr heq) hij
-  · -- `i > j`: the next edge `x_{j+1} x_{j+2}` bounds `Tⱼ` from below
-    have hC : pvSgn σ * pvCross (x ⟨j.val + 1, by omega⟩) (x ⟨j.val + 2, by omega⟩) p < 0 :=
-      mem_supportOf_right hp (by omega)
-    by_cases hjj : i.val = j.val + 1
-    · -- the next edge IS the `i`-th edge
-      have e1 : (⟨i.val, by omega⟩ : Fin (k + 1)) = ⟨j.val + 1, by omega⟩ :=
-        Fin.ext_iff.mpr (show i.val = j.val + 1 by omega)
-      have e2 : (⟨i.val + 1, by omega⟩ : Fin (k + 1)) = ⟨j.val + 2, by omega⟩ :=
-        Fin.ext_iff.mpr (show i.val + 1 = j.val + 2 by omega)
-      rw [e1, e2]
-      exact hC
-    · -- `i ≥ j + 2`: apex bound then height domination
-      set u := x ⟨i.val, by omega⟩ with hu
-      set u' := x ⟨i.val + 1, by omega⟩ with hu'
-      set w := x ⟨j.val, by omega⟩ with hw
-      set w' := x ⟨j.val + 1, by omega⟩ with hw'
-      set w'' := x ⟨j.val + 2, by omega⟩ with hw''
-      have huu' : (u : Euc 2) 0 < (u' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hww' : (w : Euc 2) 0 < (w' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hw'w'' : (w' : Euc 2) 0 < (w'' : Euc 2) 0 := hmono (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hA1 : 0 < pvSgn σ * (p 1 - pvHgt w w' (p 0)) := by
-        rw [pvCross_eq_hgt (ne_of_gt hww')] at hA
-        exact pv_mul_pos_of_pos_factor (sub_pos.mpr hww') hA
-      have hC1 : pvSgn σ * (p 1 - pvHgt w' w'' (p 0)) < 0 := by
-        rw [pvCross_eq_hgt (ne_of_gt hw'w'')] at hC
-        exact pv_mul_neg_of_pos_factor (sub_pos.mpr hw'w'') hC
-      -- wedge bound: `p` is strictly to the left of the apex `w'`
-      have hpx : p 0 < (w' : Euc 2) 0 := by
-        have hA1w : 0 < pvSgn σ * (p 1 - (w' 1 + pvSl w w' * (p 0 - w' 0))) := by
-          have h := hA1
-          rw [pvHgt_at_right (ne_of_gt hww')] at h
-          exact h
-        have hC1w : pvSgn σ * (p 1 - (w' 1 + pvSl w' w'' * (p 0 - w' 0))) < 0 := hC1
-        have hsl : 0 < pvSgn σ * (pvSl w w' - pvSl w' w'') := by
-          have h : pvSgn σ * pvSl w' w'' < pvSgn σ * pvSl w w' :=
-            pvSl_edge hmono hshape (show j.val < j.val + 1 by omega)
-              (show j.val + 1 + 1 ≤ k by omega)
-          linarith
-        have hd : pvSgn σ * (pvSl w w' - pvSl w' w'') * (p 0 - w' 0) < 0 := by
-          have e : pvSgn σ * (pvSl w w' - pvSl w' w'') * (p 0 - w' 0) =
-              pvSgn σ * (p 1 - (w' 1 + pvSl w' w'' * (p 0 - w' 0))) -
-              pvSgn σ * (p 1 - (w' 1 + pvSl w w' * (p 0 - w' 0))) := by ring
-          rw [e]
-          linarith
-        exact sub_neg.mp (Right.neg_of_mul_neg_right hd hsl.le)
-      -- domination: the line `u u'` stays strictly above `w' w''`'s height on
-      -- `[p₀, w'₀]`
-      have hdom : 0 < pvSgn σ * (pvHgt u u' (p 0) - pvHgt w' w'' (p 0)) := by
-        rw [pvHgt_affine u u' (p 0) (w' 0),
-          show pvHgt w' w'' (p 0) = w' 1 + pvSl w' w'' * (p 0 - w' 0) from rfl]
-        have hbase : 0 < pvSgn σ * (pvHgt u u' (w' 0) - w' 1) := by
-          have hc : pvSgn σ * pvCross u u' w' < 0 := by
-            have h := hshape ⟨j.val + 1, by omega⟩ ⟨i.val, by omega⟩
-              ⟨i.val + 1, by omega⟩ (Fin.lt_iff_val_lt_val.mpr (by omega))
-              (Fin.lt_iff_val_lt_val.mpr (by omega))
-            rwa [pvCross_cyc] at h
-          rw [pvCross_eq_hgt (ne_of_gt huu')] at hc
-          have hlt' := pv_mul_neg_of_pos_factor (sub_pos.mpr huu') hc
-          linarith
-        have hslope : pvSgn σ * (pvSl u u' - pvSl w' w'') < 0 := by
-          have h : pvSgn σ * pvSl u u' < pvSgn σ * pvSl w' w'' :=
-            pvSl_edge hmono hshape (show j.val + 1 < i.val by omega)
-              (show i.val + 1 ≤ k by omega)
-          linarith
-        have hprod : 0 ≤ pvSgn σ * (pvSl u u' - pvSl w' w'') * (p 0 - w' 0) :=
-          mul_nonneg_of_nonpos_of_nonpos hslope.le (sub_nonpos.mpr hpx.le)
-        have e : pvSgn σ * (pvHgt u u' (w' 0) + pvSl u u' * (p 0 - w' 0) -
-            (w' 1 + pvSl w' w'' * (p 0 - w' 0))) =
-            pvSgn σ * (pvHgt u u' (w' 0) - w' 1) +
-              pvSgn σ * (pvSl u u' - pvSl w' w'') * (p 0 - w' 0) := by ring
-        rw [e]
-        linarith
-      have key : pvSgn σ * (p 1 - pvHgt u u' (p 0)) < 0 := by
-        have e : pvSgn σ * (p 1 - pvHgt u u' (p 0)) =
-            pvSgn σ * (p 1 - pvHgt w' w'' (p 0)) -
-              pvSgn σ * (pvHgt u u' (p 0) - pvHgt w' w'' (p 0)) := by ring
-        rw [e]
-        linarith
-      rw [pvCross_eq_hgt (ne_of_gt huu')]
-      have e : pvSgn σ * ((u' 0 - u 0) * (p 1 - pvHgt u u' (p 0))) =
-          (u' 0 - u 0) * (pvSgn σ * (p 1 - pvHgt u u' (p 0))) := by ring
-      rw [e]
-      exact mul_neg_of_pos_of_neg (sub_pos.mpr huu') key
-
 /-- Support regions of distinct edges are disjoint: a point of `T_j` lies
 strictly on the interior side of the `i`-th edge line for `i ≠ j`, while
 points of `T_i` lie strictly on the other side. -/
@@ -1493,8 +1042,8 @@ private theorem dirLeC_trans {C : Set (Euc 3)} {d x y z : Euc 3}
             hCne.convexHull (Set.singleton_nonempty _)]
           apply convexHull_mono
           exact Set.union_subset
-            (subset_convexHull ℝ _ Set.subset_union_left)
-            (Set.singleton_subset_iff.2 (Set.mem_union_right _ rfl))
+            ((subset_convexHull ℝ C).trans Set.subset_union_left)
+            Set.subset_union_right
         exact hsub hw₁
       rw [mem_convexJoin] at hw₁'
       obtain ⟨c, hc, b', hb', hseg⟩ := hw₁'
@@ -1533,10 +1082,10 @@ private theorem dirLeC_incomp {C : Set (Euc 3)} (hC : Convex ℝ C) {d : Euc 3}
     · rw [hC.convexHull_union (convex_singleton _) hCne
         (Set.singleton_nonempty _), mem_convexJoin] at hw
       obtain ⟨a, ha, b', hb', hseg⟩ := hw
-      rw [Set.mem_singleton_iff] at hb'; subst hb'
+      rw [Set.mem_singleton_iff] at hb'; subst b'
       rw [segment_eq_image₂] at hseg
       obtain ⟨⟨α₁, β₁⟩, ⟨hα, hβ, hαβ⟩, hcomb⟩ := hseg
-      have hHa : H a < H z := hz ▸ hP a ha
+      have hHa : H a < H z := by rw [hz]; exact hP a ha
       have hHw : H w = α₁ * H a + β₁ * H z := by
         rw [← hcomb, map_add, map_smul, map_smul, smul_eq_mul, smul_eq_mul]
       refine ⟨?_, ?_⟩
@@ -1551,16 +1100,16 @@ private theorem dirLeC_incomp {C : Set (Euc 3)} (hC : Convex ℝ C) {d : Euc 3}
           have h1 : α₁ * H a + β₁ * H z = H z := by
             rw [← hHw]; exact hEq
           have h2 : α₁ * (H a - H z) = 0 := by
-            have h3 : α₁ * H a + β₁ * H z = (α₁ + β₁) * H z := by
-              rw [← h1]; ring
             have h4 : α₁ * H a + β₁ * H z - (α₁ + β₁) * H z =
                 α₁ * (H a - H z) := by ring
             rw [hαβ, one_mul] at h4
-            linarith [h4]
+            linarith [h1, h4]
           exact (mul_eq_zero.1 h2).resolve_right
             (sub_ne_zero.2 (ne_of_lt hHa))
         have hβ1 : β₁ = 1 := by linarith [hαβ]
-        rw [← hcomb, hα0, hβ1, zero_smul, one_smul, zero_add]
+        rw [← hcomb]
+        show α₁ • a + β₁ • z = z
+        rw [hα0, hβ1, zero_smul, one_smul, zero_add]
   constructor
   · rintro ⟨w, hw, t, rfl⟩
     obtain ⟨hle, heq⟩ := hmax y hxy.symm w hw
@@ -1746,7 +1295,7 @@ private theorem prop_2_1_poly
       H d = 0 ∧ H x = H y ∧ (∀ w ∈ C, H w < H x) ∧
         ∀ t : ℝ, x - y ≠ t • d)
     {a b : ℕ} (ha : 1 ≤ a) (hb : 1 ≤ b)
-    (hcard : (a + b - 4).choose (a - 2) ^ D.card < X.card) :
+    (hcard : (2 * (a + b - 4).choose (a - 2)) ^ D.card < X.card) :
     (∃ Y ⊆ X, Y.card = a ∧ CapOf Y (convexHull ℝ (Q : Set (Euc 3)))) ∨
       (∃ S ⊆ X, S.card = b ∧ InConvexPosition S) := by
   classical
@@ -1758,23 +1307,25 @@ private theorem prop_2_1_poly
     obtain ⟨d, hdD, H, hHd, hHxy, hHC, -⟩ := hsep x hx y hy hxy
     have hHw : H w = H x := by
       have hmem : w -ᵥ x ∈ vectorSpan ℝ ({x, y} : Set (Euc 3)) :=
-        vsub_mem_vectorSpan_of_mem_affineSpan_of_mem_affineSpan ℝ hwaff
+        vsub_mem_vectorSpan_of_mem_affineSpan_of_mem_affineSpan hwaff
           (mem_affineSpan ℝ (Set.mem_insert _ _))
       rw [vectorSpan_pair] at hmem
       obtain ⟨t, ht⟩ := Submodule.mem_span_singleton.1 hmem
-      have hsub : w - x = t • (x -ᵥ y) := by
-        have : w -ᵥ x = t • (x -ᵥ y) := ht
-        rwa [vsub_eq_sub, vsub_eq_sub] at this
+      have hsub : w - x = t • (x - y) := by
+        have e : w -ᵥ x = t • (x -ᵥ y) := ht.symm
+        rwa [vsub_eq_sub, vsub_eq_sub] at e
       have h1 : H (w - x) = t * (H x - H y) := by
         rw [hsub, map_smul, smul_eq_mul, map_sub]
       have h2 : H (w - x) = H w - H x := map_sub _ _ _
-      linarith [hHxy]
+      rw [hHxy, sub_self, mul_zero] at h1
+      linarith
     have hlt : H w < H x := hHC w (hQC' hwQ)
     linarith [hHw]
   rcases Nat.lt_or_ge a 3 with ha3 | ha3
   · have hM : (a + b - 4).choose (a - 2) = 1 := by
       interval_cases a <;> simp
-    rw [hM, one_pow] at hcard
+    rw [hM, mul_one] at hcard
+    have h2e : (1 : ℕ) ≤ 2 ^ D.card := Nat.one_le_pow _ _ (by norm_num)
     obtain ⟨Y, hYX, hYcard⟩ :=
       Finset.exists_subset_card_eq (show a ≤ X.card by omega)
     refine Or.inl ⟨Y, hYX, hYcard, ?_⟩
@@ -1787,10 +1338,10 @@ private theorem prop_2_1_poly
           omega
         obtain ⟨y, hy⟩ := hne
         exact ⟨y, (Finset.mem_erase.1 hy).2, (Finset.mem_erase.1 hy).1⟩
-      exact capOf_singleton hXfree hC hYX hyX (Ne.symm hyx)
+      exact capOf_singleton hXfree (convex_convexHull ℝ _) hYX hyX (Ne.symm hyx)
     · obtain ⟨x, y, hxy, rfl⟩ := Finset.card_eq_two.1 hYcard
       rw [Finset.insert_subset_iff] at hYX
-      exact capOf_pair hXfree hC hYX.1
+      exact capOf_pair hXfree (convex_convexHull ℝ _) hYX.1
         (Finset.singleton_subset_iff.1 hYX.2) hxy
   · rcases Nat.lt_or_ge b 3 with hb3 | hb3
     · obtain ⟨S, hSX, hScard⟩ : ∃ S ⊆ X, S.card = b := by
@@ -1802,7 +1353,8 @@ private theorem prop_2_1_poly
             subst hb2'
             have : a + 2 - 4 = a - 2 := by omega
             rw [this, Nat.choose_self]
-          rw [hM, one_pow] at hcard
+          rw [hM, mul_one] at hcard
+          have h2e : (1 : ℕ) ≤ 2 ^ D.card := Nat.one_le_pow _ _ (by norm_num)
           omega
       refine Or.inr ⟨S, hSX, hScard, ?_⟩
       interval_cases b
@@ -1811,7 +1363,9 @@ private theorem prop_2_1_poly
       · obtain ⟨x, y, hxy, rfl⟩ := Finset.card_eq_two.1 hScard
         exact inConvexPosition_pair hxy
     · -- `a, b ≥ 3`: the substantive case.
-      have hM : 1 ≤ (a + b - 4).choose (a - 2) := Nat.choose_pos (by omega)
+      have hM : 1 ≤ 2 * (a + b - 4).choose (a - 2) := by
+        have := Nat.choose_pos (show a - 2 ≤ a + b - 4 by omega)
+        omega
       -- the strict augment of `≺_{C,d}` by a well-order tiebreak
       have hltt_irr : ∀ x : Euc 3, ¬ WellOrderingRel x x := fun x ↦ irrefl x
       have hltt_tr : ∀ ⦃x y z : Euc 3⦄,
@@ -1874,7 +1428,7 @@ private theorem prop_2_1_poly
       obtain ⟨π, hinj, hgpZ, hantiπ⟩ := exists_generic_projection hX hX4 hAX
         hd₀ hdirQ
       set Z := A.image π with hZdef
-      have hcardZ : (a + b - 4).choose (a - 2) < Z.card := by
+      have hcardZ : 2 * (a + b - 4).choose (a - 2) < Z.card := by
         rw [hZdef, Finset.card_image_of_injOn hinj]
         exact hAcard
       have hpair : ∀ p ∈ Z, ∀ q ∈ Z, p ≠ q →
@@ -1914,7 +1468,7 @@ private lemma exists_mem_ker_ker (g h : Euc 3 →ₗ[ℝ] ℝ) :
     have h1 := LinearMap.finrank_range_add_finrank_ker (g.prod h)
     have h2 : Module.finrank ℝ (LinearMap.range (g.prod h)) ≤ 2 :=
       le_trans (Submodule.finrank_le _)
-        (by simp [Module.finrank_prod, finrank_self])
+        (by simp [Module.finrank_prod, Module.finrank_self])
     have h3 : Module.finrank ℝ (Euc 3) = 3 := finrank_euclideanSpace_fin
     rw [hbot, finrank_bot, h3] at h1
     omega
@@ -2271,8 +1825,9 @@ private lemma separates_poly3
       rcases hd with rfl | rfl | rfl <;> assumption
     · calc ({d₀₁, d₀₂, d₁₂} : Finset (Euc 3)).card
           ≤ ({d₀₂, d₁₂} : Finset (Euc 3)).card + 1 := Finset.card_insert_le _ _
-        _ ≤ ({d₁₂} : Finset (Euc 3)).card + 1 + 1 :=
-            add_le_add_right (Finset.card_insert_le _ _) 1
+        _ ≤ ({d₁₂} : Finset (Euc 3)).card + 1 + 1 := by
+            have h := Finset.card_insert_le d₀₂ ({d₁₂} : Finset (Euc 3))
+            omega
         _ = 3 := by simp
     · intro x hx y hy hxy
       obtain ⟨hx0, hx1, hx2⟩ := hX x hx
@@ -2389,7 +1944,7 @@ private lemma separates_poly3
         exact ⟨(z / g₀ v0) • v0, by
           rw [map_smul, smul_eq_mul, div_mul_cancel₀ _ hv0]⟩
       have h3 : Module.finrank ℝ (Euc 3) = 3 := finrank_euclideanSpace_fin
-      rw [h2, finrank_top, finrank_self, h3] at h1
+      rw [h2, finrank_top, Module.finrank_self, h3] at h1
       omega
     have hlt : Submodule.span ℝ {e} < LinearMap.ker g₀ := by
       refine lt_of_le_of_ne ?_ ?_
@@ -2476,7 +2031,7 @@ private lemma separates_poly3
           intro t ht
           apply hve
           rw [Submodule.mem_span_singleton]
-          exact ⟨-t, by rw [neg_smul, ht, neg_sub, ← hvdef]⟩
+          exact ⟨-t, by rw [neg_smul, ← ht, neg_sub, hvdef]⟩
         by_cases h0 : g₀ v = 0
         · have hxy0 : g₀ x = g₀ y := by
             have h' : g₀ v = g₀ y - g₀ x := by rw [hvdef, map_sub]
@@ -2517,7 +2072,7 @@ private lemma mem_affineSpan_pair_eq {x y w : Euc 3}
     ∃ s : ℝ, w = (1 - s) • x + s • y := by
   rw [mem_affineSpan_pair_iff_exists_lineMap_eq] at hw
   obtain ⟨t, ht⟩ := hw
-  exact ⟨t, by rw [AffineMap.lineMap_apply_module] at ht; rw [← ht]; abel⟩
+  exact ⟨t, by rw [AffineMap.lineMap_apply_module] at ht; exact ht.symm⟩
 
 /-- The `precRel` relation is transitive on points strictly on the `g > c`
 side, provided `P` is a convex region strictly on the `g < c` side. -/
@@ -2587,7 +2142,7 @@ private lemma precRel_trans {P : Set (Euc 3)} (hP : Convex ℝ P)
               (mul_nonneg (sub_nonneg.mpr hu1) hs'.le))
             (mul_lt_mul_of_pos_left (hPside p hpP) hu')
       _ = c * (u + s - u * s) := by ring
-  have hgc : g x < c := (mul_lt_mul_right hD).mp hlt
+  have hgc : g x < c := (mul_lt_mul_iff_left₀ hD).mp hlt
   linarith
 /-- Cancellation of a nonzero scalar in a real vector space. -/
 private lemma eq_of_smul_ne_zero {d : ℝ} (hd : d ≠ 0) {v w : Euc 3}
@@ -2649,7 +2204,7 @@ private lemma wedge_collinear {y w p : Euc 3} {t u : ℝ}
         _ < u * g₁ p - t * g₁ w :=
             sub_lt_sub (mul_lt_mul_of_pos_left hp1 hu) (mul_lt_mul_of_pos_left hw1 ht)
         _ = (u - t) * g₁ y := key.symm
-    exact Or.inl ((mul_lt_mul_left (sub_pos.mpr htu)).mp hlt)
+    exact Or.inl ((mul_lt_mul_iff_right₀ (sub_pos.mpr htu)).mp hlt)
   · -- `t = u`: `t•w = t•p`, hence `w = p`.
     rw [← htu] at h3
     exact Or.inr (Or.inr (eq_of_smul_ne_zero ht.ne' (add_left_cancel_iff.mp h3)))
@@ -2662,7 +2217,7 @@ private lemma wedge_collinear {y w p : Euc 3} {t u : ℝ}
         _ < t * c₂ - u * c₂ :=
             sub_lt_sub (mul_lt_mul_of_pos_left hw2 ht) (mul_lt_mul_of_pos_left hp2 hu)
         _ = (t - u) * c₂ := by ring
-    exact Or.inr (Or.inl ((mul_lt_mul_left (sub_pos.mpr htu)).mp hlt))
+    exact Or.inr (Or.inl ((mul_lt_mul_iff_right₀ (sub_pos.mpr htu)).mp hlt))
 
 /-- Convex-combination step: if `b = (1-v)•a + v•p` and `a = (1-t)•b + t•w`
 with `v,t ∈ (0,1]`, then `b` is a convex combination of `w,p`; applied to
@@ -2688,7 +2243,7 @@ private lemma wedge_conv_comb {a b w p : Euc 3} {v t : ℝ}
     calc (v + t - v * t) * g₀ b = (1 - v) * t * g₀ w + v * g₀ p := key
       _ < (1 - v) * t * c₀ + v * c₀ := add_lt_add_of_le_of_lt hle hlt
       _ = (v + t - v * t) * c₀ := by ring
-  exact (mul_lt_mul_left hD).mp hb
+  exact (mul_lt_mul_iff_right₀ hD).mp hb
 
 /-- An antichain in the `≺_P` order inside the `g > c` region is `P`-free
 when `P ⊆ {g < c}`: a point of `P` on the secant line `xy` lies either on
@@ -2849,8 +2404,8 @@ private lemma sorted_triple_inj {K : ℕ} {a b c d e f : Fin K}
     · exact hde.le
     · exact (hde.trans hef).le
   have had : a = d :=
-    le_antisymm (hdmin a (h ▸ Finset.mem_insert_self a _))
-      (hamin d (h.symm ▸ Finset.mem_insert_self d _))
+    le_antisymm (hamin d (h.symm ▸ Finset.mem_insert_self d _))
+      (hdmin a (h ▸ Finset.mem_insert_self a _))
   have hcmax : ∀ x ∈ ({a, b, c} : Finset (Fin K)), x ≤ c := by
     intro x hx
     rcases (hmem x).mp hx with rfl | rfl | rfl
@@ -2874,9 +2429,13 @@ private lemma sorted_triple_inj {K : ℕ} {a b c d e f : Fin K}
     h ▸ Finset.mem_insert.mpr (Or.inr (Finset.mem_insert_self _ _))
   rw [hmem'] at hbm
   rcases hbm with h1 | h1 | h1
-  · exact absurd (h1 ▸ had ▸ hab) (lt_irrefl d)
+  · subst b
+    rw [had] at hab
+    exact absurd hab (lt_irrefl d)
   · exact h1
-  · exact absurd (h1 ▸ hcf ▸ hbc) (lt_irrefl f)
+  · subst b
+    rw [hcf] at hbc
+    exact absurd hbc (lt_irrefl f)
 
 /-- The `P¹` region `{g₀ < c₀, c₁ < g₁, c₂ < g₂}` is convex. -/
 private lemma convex_halfspaces₁ {g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ} {c₀ c₁ c₂ : ℝ} :
@@ -2886,9 +2445,13 @@ private lemma convex_halfspaces₁ {g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ} {c�
         {z : Euc 3 | c₂ < g₂ z} := by
     ext z; simp [and_assoc]
   rw [e]
-  exact ((convex_Iio c₀).linear_preimage g₀).inter
-    (((convex_Ioi c₁).linear_preimage g₁).inter
-      ((convex_Ioi c₂).linear_preimage g₂))
+  refine Convex.inter (Convex.inter ?_ ?_) ?_
+  · show Convex ℝ (⇑g₀ ⁻¹' Set.Iio c₀)
+    exact (convex_Iio c₀).linear_preimage g₀
+  · show Convex ℝ (⇑g₁ ⁻¹' Set.Ioi c₁)
+    exact (convex_Ioi c₁).linear_preimage g₁
+  · show Convex ℝ (⇑g₂ ⁻¹' Set.Ioi c₂)
+    exact (convex_Ioi c₂).linear_preimage g₂
 
 /-- The `P²` region `{g₀ < c₀, g₁ < c₁, g₂ < c₂}` is convex. -/
 private lemma convex_halfspaces₂ {g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ} {c₀ c₁ c₂ : ℝ} :
@@ -2898,9 +2461,13 @@ private lemma convex_halfspaces₂ {g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ} {c�
         {z : Euc 3 | g₂ z < c₂} := by
     ext z; simp [and_assoc]
   rw [e]
-  exact ((convex_Iio c₀).linear_preimage g₀).inter
-    (((convex_Iio c₁).linear_preimage g₁).inter
-      ((convex_Iio c₂).linear_preimage g₂))
+  refine Convex.inter (Convex.inter ?_ ?_) ?_
+  · show Convex ℝ (⇑g₀ ⁻¹' Set.Iio c₀)
+    exact (convex_Iio c₀).linear_preimage g₀
+  · show Convex ℝ (⇑g₁ ⁻¹' Set.Iio c₁)
+    exact (convex_Iio c₁).linear_preimage g₁
+  · show Convex ℝ (⇑g₂ ⁻¹' Set.Iio c₂)
+    exact (convex_Iio c₂).linear_preimage g₂
 
 /-- The `P²` variant of `separates_poly3`: the sign pattern
 `(+,-,+)` on `X` versus `(-,-,-)` on `C` is obtained from the `P¹` pattern
@@ -2917,18 +2484,16 @@ private lemma separates_poly3' {g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ} {c₀ c�
           H w < H x) ∧
           ∀ t : ℝ, x - y ≠ t • d := by
   classical
-  refine separates_poly3 {z : Euc 3 | g₀ z < c₀ ∧ g₁ z < c₁ ∧ g₂ z < c₂} ?_
-    hg₀ (neg_ne_zero.mpr hg₂) (neg_ne_zero.mpr hg₁) ?_ hfree
-  · ext z
+  have hCe : {z : Euc 3 | g₀ z < c₀ ∧ g₁ z < c₁ ∧ g₂ z < c₂} =
+      {z : Euc 3 | g₀ z < c₀ ∧ -c₂ < (-g₂) z ∧ -c₁ < (-g₁) z} := by
+    ext z
     simp only [Set.mem_setOf_eq, LinearMap.neg_apply]
-    constructor
-    · rintro ⟨h0, h1, h2⟩
-      exact ⟨h0, by linarith, by linarith⟩
-    · rintro ⟨h0, h1, h2⟩
-      exact ⟨h0, by linarith, by linarith⟩
-  · intro x hx
-    obtain ⟨h0, h1, h2⟩ := hX x hx
-    refine ⟨h0, ?_, ?_⟩ <;> simp only [LinearMap.neg_apply] <;> linarith
+    constructor <;> rintro ⟨h0, h1, h2⟩ <;> refine ⟨h0, ?_, ?_⟩ <;> linarith
+  refine separates_poly3 _ hCe hg₀ (neg_ne_zero.mpr hg₂) (neg_ne_zero.mpr hg₁) ?_
+    hfree
+  intro x hx
+  obtain ⟨h0, h1, h2⟩ := hX x hx
+  refine ⟨h0, ?_, ?_⟩ <;> simp only [LinearMap.neg_apply] <;> linarith
 
 /-- The Dilworth dichotomy on a middle block: a `P¹`- or `P²`-free large
 subset of `X (σ b)`, packaged with the separating data of
@@ -2939,12 +2504,13 @@ private lemma triple_free_dichotomy {k k₀ : ℕ} {X : Fin k₀ → Finset (Euc
     {x : Fin k₀ → Euc 3} (hx : ∀ i, x i ∈ X i)
     {σ : Fin k ↪o Fin k₀}
     (hsplit : ∀ a b c : Fin k, a ≤ b → b ≤ c →
-      Disjoint (convexHull ℝ ((Finset.image (x∘σ)
-        (Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c))) : Finset (Fin k))
-          : Set (Euc 3)))
-        (convexHull ℝ ((Finset.image (x∘σ)
-        (Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i)) : Finset (Fin k))
-          : Set (Euc 3)))))
+      Disjoint
+        (convexHull ℝ ((Finset.image (x ∘ σ)
+          ((Finset.univ.filter (fun i ↦ i < a ∨ (b ≤ i ∧ i < c)))
+            : Finset (Fin k))) : Set (Euc 3)))
+        (convexHull ℝ ((Finset.image (x ∘ σ)
+          ((Finset.univ.filter (fun i ↦ (a ≤ i ∧ i < b) ∨ c ≤ i))
+            : Finset (Fin k))) : Set (Euc 3))))
     {a b c : Fin k} (hab : a < b) (hbc : b < c) (hck : c.val + 1 < k) :
     ∃ g₀ g₁ g₂ : Euc 3 →ₗ[ℝ] ℝ, ∃ c₀ c₁ c₂ : ℝ, ∃ A : Finset (Euc 3),
       g₀ ≠ 0 ∧ g₁ ≠ 0 ∧ g₂ ≠ 0 ∧
@@ -2977,7 +2543,7 @@ private lemma triple_free_dichotomy {k k₀ : ℕ} {X : Fin k₀ → Finset (Euc
   · have hcoe : (t.image (fun y : ↥B ↦ (y : Euc 3))).card = t.card :=
       Finset.card_image_of_injective _ Subtype.coe_injective
     rw [hcoe]
-    rwa [hBdef, Finset.card_attach] at htcard
+    rwa [Finset.card_attach] at htcard
   · rcases hco with hchain | hanti
     · refine Or.inr ?_
       apply freeOf_of_chain
@@ -2989,7 +2555,7 @@ private lemma triple_free_dichotomy {k k₀ : ℕ} {X : Fin k₀ → Finset (Euc
         rw [Finset.mem_image] at hx hy
         obtain ⟨x', hx', rfl⟩ := hx
         obtain ⟨y', hy', rfl⟩ := hy
-        exact hchain x' (Finset.mem_attach _ x') y' (Finset.mem_attach _ y')
+        exact hchain x' hx' y' hy'
           (fun h ↦ hxy (congrArg Subtype.val h))
     · refine Or.inl ?_
       apply freeOf_of_antichain (P := P1) (g := g₀) (c := c₀)
@@ -3002,7 +2568,7 @@ private lemma triple_free_dichotomy {k k₀ : ℕ} {X : Fin k₀ → Finset (Euc
         rw [Finset.mem_image] at hx hy
         obtain ⟨x', hx', rfl⟩ := hx
         obtain ⟨y', hy', rfl⟩ := hy
-        exact hanti x' (Finset.mem_attach _ x') y' (Finset.mem_attach _ y')
+        exact hanti x' hx' y' hy'
           (fun h ↦ hxy (congrArg Subtype.val h))
 
 /-- Gluing caps: if each `K l` is a `conv (Q l)`-cap and every other `K r`
@@ -3022,7 +2588,7 @@ private lemma cap_union_convex {u : ℕ} {B : Fin u → Finset (Euc 3)}
   rintro y hy
   rw [Finset.coe_erase] at hy
   obtain ⟨hyr, hyx⟩ := hy
-  rw [Finset.mem_biUnion] at hyr
+  rw [Finset.mem_coe, Finset.mem_biUnion] at hyr
   obtain ⟨r, -, hyK⟩ := hyr
   rw [Set.mem_singleton_iff] at hyx
   rcases eq_or_ne r l with rfl | hrl
@@ -3060,27 +2626,28 @@ private lemma close_via_convex {n : ℕ} {X : Finset (Euc 3)}
 /-- `choose (N, m) ≤ (e·N/m)^m`. -/
 private lemma choose_le_e_pow {N m : ℕ} (hm : 0 < m) :
     ((N.choose m : ℕ) : ℝ) ≤ (Real.exp 1 * N / m) ^ m := by
-  have hfact : (m:ℝ) ^ m ≤ (m ! : ℝ) * Real.exp m := by
+  have hfact : (m:ℝ) ^ m ≤ (Nat.factorial m : ℝ) * Real.exp m := by
     have h := Real.sum_le_exp_of_nonneg (Nat.cast_nonneg m) (m + 1)
-    have hterm : (m:ℝ) ^ m / (m ! : ℝ) ≤
-        ∑ i ∈ Finset.range (m + 1), (m:ℝ) ^ i / i ! :=
-      Finset.single_le_sum (fun i _ ↦ by positivity)
-        (Finset.mem_range.mpr (Nat.lt_succ_self m))
+    have hterm : (m:ℝ) ^ m / (Nat.factorial m : ℝ) ≤
+        ∑ i ∈ Finset.range (m + 1), (m:ℝ) ^ i / (Nat.factorial i : ℝ) :=
+      Finset.single_le_sum (f := fun i ↦ (m:ℝ) ^ i / (Nat.factorial i : ℝ))
+        (fun i _ ↦ by positivity) (Finset.mem_range.mpr (Nat.lt_succ_self m))
     have hsum := hterm.trans h
     rw [div_le_iff₀ (Nat.cast_pos.mpr (Nat.factorial_pos m))] at hsum
-    exact hsum
+    rwa [mul_comm] at hsum
   have he : Real.exp m = Real.exp 1 ^ m := by
     have h := Real.exp_nat_mul (1 : ℝ) m
     rw [mul_one] at h
-    exact h.symm
+    exact h
   calc ((N.choose m : ℕ) : ℝ)
-      ≤ (N : ℝ) ^ m / m ! := Nat.choose_le_pow_div m N
+      ≤ (N : ℝ) ^ m / (Nat.factorial m : ℝ) := Nat.choose_le_pow_div m N
     _ ≤ (Real.exp 1 * N / m) ^ m := by
-        rw [div_pow, div_le_div_iff (Nat.cast_pos.mpr (Nat.factorial_pos m))
+        rw [div_pow, div_le_div_iff₀ (Nat.cast_pos.mpr (Nat.factorial_pos m))
           (by positivity : (0:ℝ) < (m:ℝ) ^ m)]
-        calc (N:ℝ) ^ m * (m:ℝ) ^ m ≤ (N:ℝ) ^ m * ((m ! : ℝ) * Real.exp m) :=
+        calc (N:ℝ) ^ m * (m:ℝ) ^ m ≤
+              (N:ℝ) ^ m * ((Nat.factorial m : ℝ) * Real.exp m) :=
               mul_le_mul_of_nonneg_left hfact (by positivity)
-          _ = (Real.exp 1 * (N:ℝ)) ^ m * (m ! : ℝ) := by
+          _ = (Real.exp 1 * (N:ℝ)) ^ m * (Nat.factorial m : ℝ) := by
               rw [mul_pow, ← he]; ring
 
 /-- Choice of the cap count `u` making `6·log₂(e(u+2))/u ≤ ε/4`. -/
@@ -3096,7 +2663,7 @@ private lemma exists_capCount {ε : ℝ} (hε : 0 < ε) :
     have h := Real.sqrt_le_sqrt hceil
     rwa [Real.sqrt_sq h250.le] at h
   have hu1 : (1:ℝ) ≤ u := by exact_mod_cast Nat.one_le_iff_ne_zero.mpr (by omega)
-  have hlog2pos : (0:ℝ) < Real.log 2 := Real.log_two_pos
+  have hlog2pos : (0:ℝ) < Real.log 2 := Real.log_pos (by norm_num)
   have hlog2 : (0.693 : ℝ) < Real.log 2 := lt_trans (by norm_num) Real.log_two_gt_d9
   have hsqrt2 : Real.sqrt ((u:ℝ) + 2) ≤ 2 * Real.sqrt (u:ℝ) := by
     have h12 : (u:ℝ) + 2 ≤ 4 * u := by nlinarith [hu1]
@@ -3116,20 +2683,15 @@ private lemma exists_capCount {ε : ℝ} (hε : 0 < ε) :
         Real.log_exp]
     have hstep : 1 + Real.log ((u:ℝ) + 2) ≤ 3 * Real.sqrt ((u:ℝ) + 2) := by
       have h1 : (1:ℝ) ≤ Real.sqrt ((u:ℝ) + 2) := by
-        rw [Real.le_sqrt (by positivity) (by norm_num : (0:ℝ) < 1)]
-        norm_num
-        exact_mod_cast hu1.trans' (by norm_num : (0:ℝ) ≤ 1) |>.trans' (by
-          norm_num : (0:ℝ) ≤ 1) |>.trans (by exact_mod_cast hu1)
+        rw [Real.le_sqrt (by norm_num) (by positivity)]
+        nlinarith [hu1]
       nlinarith [hlog, h1]
     have hdiv : (1 + Real.log ((u:ℝ) + 2)) / Real.log 2 ≤
         (3 * Real.sqrt ((u:ℝ) + 2)) / 0.693 :=
-      div_le_div hstep hlog2.le (by norm_num)
-        (mul_nonneg (by norm_num) (Real.sqrt_nonneg _))
+      div_le_div₀ (by positivity) hstep (by norm_num) hlog2.le
     calc (6:ℝ) * Real.logb 2 (Real.exp 1 * (u + 2))
         = 6 * ((1 + Real.log ((u:ℝ) + 2)) / Real.log 2) := by
           rw [Real.logb, hloge]
-          push_cast
-          ring_nf
       _ ≤ 6 * (3 * Real.sqrt ((u:ℝ) + 2) / 0.693) :=
           mul_le_mul_of_nonneg_left hdiv (by norm_num)
       _ = 18 / 0.693 * Real.sqrt ((u:ℝ) + 2) := by ring
@@ -3142,13 +2704,14 @@ private lemma exists_capCount {ε : ℝ} (hε : 0 < ε) :
   calc (6:ℝ) * Real.logb 2 (Real.exp 1 * (u + 2)) ≤ 52 * Real.sqrt (u:ℝ) := hL
     _ ≤ ε * u / 4 := by
         have h1 : (250:ℝ) ≤ ε * Real.sqrt (u:ℝ) := by
-          have := hsqrt
-          rw [div_le_iff₀ hε] at this
-          linarith [mul_comm ε (Real.sqrt (u:ℝ)) ▸ this]
+          rw [div_le_iff₀ hε] at hsqrt
+          rwa [mul_comm] at hsqrt
         have h2 : (52:ℝ) * Real.sqrt (u:ℝ) ≤ (ε * Real.sqrt (u:ℝ)) *
             Real.sqrt (u:ℝ) / 4 := by
-          rw [div_le_iff₀ (by norm_num : (0:ℝ) < 4)]
-          nlinarith [h1, Real.sqrt_nonneg (u:ℝ)]
+          rw [le_div_iff₀ (by norm_num : (0:ℝ) < 4)]
+          have hsq : Real.sqrt (u:ℝ) * Real.sqrt (u:ℝ) = u :=
+            Real.mul_self_sqrt (by positivity : (0:ℝ) ≤ u)
+          nlinarith [h1, Real.sqrt_nonneg (u:ℝ), hsq]
         have h3 : (ε * Real.sqrt (u:ℝ)) * Real.sqrt (u:ℝ) / 4 = ε * u / 4 := by
           rw [mul_assoc, Real.mul_self_sqrt (by positivity : (0:ℝ) ≤ u)]
         rwa [h3] at h2
@@ -3164,16 +2727,19 @@ private lemma choose_pow_le_two_pow {u : ℕ} (hu : 1 ≤ u) {ε : ℝ} (hε : 0
   set m : ℕ := n / u with hm
   have hm1 : 1 ≤ m := by
     rw [hm, Nat.le_div_iff_mul_le (by omega : 0 < u)]
-    calc u * 1 = u := mul_one u
-      _ ≤ u * (u + 1) := Nat.mul_le_mul_left _ (by omega)
+    calc 1 * u = u := one_mul u
+      _ ≤ u * (u + 1) := by
+          nth_rewrite 1 [← mul_one u]
+          exact Nat.mul_le_mul_left u (by omega)
       _ ≤ n := hn
   have hmu : u ≤ m := by
     rw [hm, Nat.le_div_iff_mul_le (by omega : 0 < u)]
-    calc u * u ≤ u * (u + 1) := Nat.mul_le_mul_left _ (by omega)
+    calc u * u ≤ u * (u + 1) := Nat.mul_le_mul_left u (by omega)
       _ ≤ n := hn
   have hnm : n ≤ (u + 1) * m := by
     have h1 : u * m + n % u = n := Nat.div_add_mod n u
     have h2 : n % u < u := Nat.mod_lt _ (by omega)
+    have h3 : (u + 1) * m = u * m + m := by ring
     omega
   have hmpos : (0:ℝ) < m := by exact_mod_cast hm1
   have hupos : (0:ℝ) < u := by exact_mod_cast hu
@@ -3187,7 +2753,9 @@ private lemma choose_pow_le_two_pow {u : ℕ} (hu : 1 ≤ u) {ε : ℝ} (hε : 0
     linarith
   have hC : (((n + m).choose m : ℕ) : ℝ) ≤ (Real.exp 1 * (u + 2)) ^ m := by
     calc (((n + m).choose m : ℕ) : ℝ)
-        ≤ (Real.exp 1 * (n + m) / m) ^ m := choose_le_e_pow (by omega)
+        ≤ (Real.exp 1 * (n + m) / m) ^ m := by
+          have hc := choose_le_e_pow (N := n + m) hm1
+          rwa [Nat.cast_add] at hc
       _ = (Real.exp 1 * (((n:ℝ) + m) / m)) ^ m := by
           congr 1
           push_cast
@@ -3198,13 +2766,14 @@ private lemma choose_pow_le_two_pow {u : ℕ} (hu : 1 ≤ u) {ε : ℝ} (hε : 0
   set L : ℝ := Real.logb 2 (Real.exp 1 * (u + 2)) with hL
   have hLpos : 0 ≤ L := by
     rw [hL, Real.logb]
-    apply div_nonneg _ hlog2pos.le
+    apply div_nonneg _ (Real.log_pos (by norm_num : (1:ℝ) < 2)).le
     · -- log (e(u+2)) ≥ 0
       apply Real.log_nonneg
-      calc (1:ℝ) ≤ Real.exp 1 := Real.exp_one_gt_d9.le.trans' (by norm_num)
+      have h1e : (1:ℝ) ≤ Real.exp 1 := le_trans (by norm_num) Real.exp_one_gt_d9.le
+      calc (1:ℝ) ≤ Real.exp 1 := h1e
         _ ≤ Real.exp 1 * (u + 2) := by
             apply le_mul_of_one_le_right (Real.exp_pos 1).le
-            exact_mod_cast (by omega : 1 ≤ u + 2)
+            exact_mod_cast (by omega : (1:ℕ) ≤ u + 2)
   have hkey : (Real.exp 1 * (u + 2)) ^ m ≤ (2:ℝ) ^ (L * (m:ℝ)) := by
     have e2 : Real.exp 1 * (u + 2) = (2:ℝ) ^ L := by
       rw [hL]
@@ -3212,28 +2781,27 @@ private lemma choose_pow_le_two_pow {u : ℕ} (hu : 1 ≤ u) {ε : ℝ} (hε : 0
         (by positivity : (0:ℝ) < Real.exp 1 * (u + 2))).symm
     calc (Real.exp 1 * (u + 2)) ^ m = ((2:ℝ) ^ L) ^ (m:ℝ) := by
           rw [e2, Real.rpow_natCast]
-      _ = (2:ℝ) ^ (L * m) := by rw [← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
+      _ = (2:ℝ) ^ (L * m) := by
+          rw [← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
+      _ ≤ (2:ℝ) ^ (L * m) := le_rfl
   have hC6 : (((n + m).choose m : ℕ) : ℝ) ^ 6 ≤ (2:ℝ) ^ (6 * (m:ℝ) * L) := by
     calc (((n + m).choose m : ℕ) : ℝ) ^ 6
-        ≤ ((Real.exp 1 * (u + 2)) ^ m) ^ 6 :=
-          pow_le_pow_left₀ (by positivity) hC _
-      _ = (Real.exp 1 * (u + 2)) ^ (m * 6) := by rw [pow_mul]
-      _ = ((Real.exp 1 * (u + 2)) ^ m) ^ 6 := by rw [pow_mul]; ring_nf
-      _ ≤ ((2:ℝ) ^ (L * m)) ^ 6 := pow_le_pow_left₀ (by positivity) hkey _
+        ≤ ((2:ℝ) ^ (L * m)) ^ 6 :=
+          pow_le_pow_left₀ (by positivity) (hC.trans hkey) _
       _ = (2:ℝ) ^ (L * m * 6) := by
-          rw [← Real.rpow_natCast, ← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2)]
-      _ = (2:ℝ) ^ (6 * (m:ℝ) * L) := by ring_nf
+          rw [← Real.rpow_natCast, ← Real.rpow_mul (by norm_num : (0:ℝ) ≤ 2),
+            Nat.cast_ofNat]
+      _ = (2:ℝ) ^ (6 * (m:ℝ) * L) := by congr 1; ring
   have hexp : 6 * (m:ℝ) * L + E ≤ ε * n / 2 := by
     have h1 : 6 * (m:ℝ) * L ≤ ε * n / 4 := by
       have h2 : (m:ℝ) ≤ n / u := by
         rw [hm]
         exact Nat.cast_div_le
       have h3 : (m:ℝ) * (6 * L) ≤ (n / u) * (ε * u / 4) :=
-        mul_le_mul h2 (by rwa [← hL]) (mul_nonneg (by norm_num) hLpos)
+        mul_le_mul h2 hub (mul_nonneg (by norm_num) hLpos)
           (by positivity)
       have h4 : (n:ℝ) / u * (ε * u / 4) = ε * n / 4 := by
         field_simp
-        ring
       calc 6 * (m:ℝ) * L = (m:ℝ) * (6 * L) := by ring
         _ ≤ (n / u) * (ε * u / 4) := h3
         _ = ε * n / 4 := h4
@@ -3241,10 +2809,8 @@ private lemma choose_pow_le_two_pow {u : ℕ} (hu : 1 ≤ u) {ε : ℝ} (hε : 0
   calc (((n + n / u).choose (n / u) : ℕ) : ℝ) ^ 6 * (2:ℝ) ^ E
       = (((n + m).choose m : ℕ) : ℝ) ^ 6 * (2:ℝ) ^ E := by rw [hm]
     _ ≤ (2:ℝ) ^ (6 * (m:ℝ) * L) * (2:ℝ) ^ (E:ℝ) := by
-        apply mul_le_mul_of_nonneg hC6 _ (Real.rpow_nonneg (by norm_num) _)
-          (Real.rpow_nonneg (by norm_num) _)
-        rw [Real.rpow_natCast]
-        exact Real.rpow_nonneg (by norm_num) _
+        exact mul_le_mul hC6 (le_of_eq (Real.rpow_natCast (2:ℝ) E).symm)
+          (by positivity) (Real.rpow_nonneg (by norm_num) _)
     _ = (2:ℝ) ^ (6 * (m:ℝ) * L + E) := by
         rw [← Real.rpow_add (by norm_num : (0:ℝ) < 2)]
     _ ≤ (2:ℝ) ^ (ε * (n:ℝ) / 2) :=
@@ -3273,16 +2839,21 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
     {n : ℕ} (hn : u * (u + 1) ≤ n)
     {X : Finset (Euc 3)} (hX : InGeneralPosition (X : Set (Euc 3)))
     (hnocvx : ∀ S ⊆ X, S.card = n → ¬ InConvexPosition S)
-    (hcard : (n + n / u).choose (n / u) ^ 6 * 2 ^ (40 * k₀ + k₀ ^ 3) <
+    (hcard : (n + n / u).choose (n / u) ^ 6 * 2 ^ (40 * k₀ + k₀ ^ 3 + 6) <
       X.card) : False := by
   classical
   have hm1 : 1 ≤ n / u := by
     rw [Nat.le_div_iff_mul_le (show 0 < u by omega)]
-    calc u * 1 = u := mul_one u
-      _ ≤ u * (u + 1) := Nat.mul_le_mul_left _ (by omega)
+    calc 1 * u = u := one_mul u
+      _ ≤ u * (u + 1) := by
+          nth_rewrite 1 [← mul_one u]
+          exact Nat.mul_le_mul_left u (by omega)
       _ ≤ n := hn
   have hCpos : 0 < (n + n / u).choose (n / u) := Nat.choose_pos (by omega)
   have hC2 : 2 ≤ (n + n / u).choose (n / u) := by
+    have hn2 : 2 ≤ n := by
+      have hu2 : 2 ≤ u * (u + 1) := Nat.mul_le_mul hu (Nat.succ_le_succ hu)
+      omega
     rcases Nat.lt_or_ge ((n + n / u).choose (n / u)) 2 with h | h
     · have h1 : (n + n / u).choose (n / u) = 1 := by omega
       rw [Nat.choose_eq_one_iff] at h1
@@ -3290,11 +2861,14 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
     · exact h
   set E : ℕ := 40 * k₀ + k₀ ^ 3 with hE
   have hX4 : 4 ≤ X.card := by
-    have hE2 : 2 ≤ E := by rw [hE]; nlinarith [hk₀]
-    have h4 : (4:ℕ) ≤ 2 ^ E := by
+    have hE2 : 2 ≤ E := by
+      rw [hE]
+      have h3 : (1:ℕ) ≤ k₀ ^ 3 := Nat.one_le_pow _ _ (by omega)
+      omega
+    have h4 : (4:ℕ) ≤ 2 ^ (E + 6) := by
       calc (4:ℕ) = 2 ^ 2 := by norm_num
-        _ ≤ 2 ^ E := Nat.pow_le_pow_right (by norm_num) hE2
-    have h5 : (4:ℕ) ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ E :=
+        _ ≤ 2 ^ (E + 6) := Nat.pow_le_pow_right (by norm_num) (by omega)
+    have h5 : (4:ℕ) ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ (E + 6) :=
       le_trans h4 (Nat.le_mul_of_pos_left _ (Nat.one_le_pow _ _ hCpos))
     omega
   -- Step 1: normalization
@@ -3309,8 +2883,9 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
     rw [hVcard]
     have h1 : 2 ^ (40 * k₀) ≤ 2 ^ E :=
       Nat.pow_le_pow_right (by norm_num) (by rw [hE]; omega)
-    have h2 : 2 ^ E ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ E :=
-      Nat.le_mul_of_pos_left _ (Nat.one_le_pow _ _ hCpos)
+    have h2 : 2 ^ E ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ (E + 6) :=
+      (Nat.pow_le_pow_right (by norm_num) (by omega)).trans
+        (Nat.le_mul_of_pos_left _ (Nat.one_le_pow _ _ hCpos))
     omega
   obtain ⟨x₂, sgn, TR, hxV, hxmono, hcap, hTeq, hTfib, htrans⟩ :=
     porValtr_positiveFraction hk₀ hVgp hVdx hpow
@@ -3326,14 +2901,15 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       ext p
       simp only [Finset.mem_image, Finset.mem_filter]
       constructor
-      · rintro ⟨z, ⟨hzX', hzT⟩, rfl⟩
+      · rintro ⟨z, hzW, rfl⟩
+        obtain ⟨hzX', hzT⟩ := Finset.mem_filter.mp hzW
         refine ⟨?_, hzT⟩
         rw [← hVeq]
         exact Finset.mem_image.mpr ⟨z, hzX', rfl⟩
       · rintro ⟨hpV, hpT⟩
         rw [← hVeq, Finset.mem_image] at hpV
         obtain ⟨z, hz, rfl⟩ := hpV
-        exact ⟨z, ⟨hz, hpT⟩, rfl⟩
+        exact ⟨z, Finset.mem_filter.mpr ⟨hz, hpT⟩, rfl⟩
     have hinjW : Set.InjOn proj2 ((W i : Finset (Euc 3)) : Set (Euc 3)) :=
       hinj2.mono (Finset.coe_subset.mpr (hWsub i))
     have h1 : (W i).card = ((W i).image proj2).card :=
@@ -3342,7 +2918,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
     have h2 : (TR i ∩ (V : Set (Euc 2))) = ↑(V.filter (fun p ↦ p ∈ TR i)) := by
       ext p
       simp [and_comm]
-    rw [h2, Set.ncard_coe_Finset]
+    rw [h2, Set.ncard_coe_finset]
   have hWfib : ∀ i : Fin k₀, 2 ^ (40 * k₀) * (W i).card ≥ X.card := by
     intro i
     have h := hTfib i
@@ -3370,13 +2946,17 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       calc 2 ^ (40 * k₀) * 2 ^ (k₀ ^ 3) = 2 ^ E := by rw [hE, ← Nat.pow_add]
         _ ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ E :=
             Nat.le_mul_of_pos_left _ (Nat.one_le_pow _ _ hCpos)
+        _ ≤ (n + n / u).choose (n / u) ^ 6 * 2 ^ (E + 6) :=
+            Nat.mul_le_mul_left _
+              (Nat.pow_le_pow_right (by norm_num) (by omega))
         _ ≤ X.card := hcard.le
         _ ≤ 2 ^ (40 * k₀) * (W i).card := hWfib i
     exact Nat.le_of_mul_le_mul_left h1
       (pow_pos (by norm_num : (0:ℕ) < 2) _)
   -- Step 4: thinning
   obtain ⟨Y, hYsub, hYcard, hYsep⟩ := prop_2_5 W hWdisj hWsize hgpW
-  have hYcard2 : ∀ i : Fin k₀, (n + n / u).choose (n / u) ^ 6 < (Y i).card := by
+  have hYcard2 : ∀ i : Fin k₀,
+      64 * (n + n / u).choose (n / u) ^ 6 < (Y i).card := by
     intro i
     have h1 : X.card ≤ 2 ^ E * (Y i).card := by
       have h2 : (W i).card ≤ 2 ^ (k₀ ^ 3) * (Y i).card := hYcard i
@@ -3384,10 +2964,16 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         _ ≤ 2 ^ (40 * k₀) * (2 ^ (k₀ ^ 3) * (Y i).card) :=
             Nat.mul_le_mul_left _ h2
         _ = 2 ^ E * (Y i).card := by rw [hE, Nat.pow_add]; ring
-    have h2 : (n + n / u).choose (n / u) ^ 6 * 2 ^ E < 2 ^ E * (Y i).card :=
-      lt_of_lt_of_le hcard h1
-    rw [mul_comm] at h2
-    exact Nat.lt_of_mul_lt_mul_left h2 (pow_pos (by norm_num : (0:ℕ) < 2) _)
+    have h2 : 2 ^ E * (64 * (n + n / u).choose (n / u) ^ 6) <
+        2 ^ E * (Y i).card := by
+      have h3 : (n + n / u).choose (n / u) ^ 6 * 2 ^ (E + 6) < X.card := hcard
+      have h3' : 2 ^ E * (64 * (n + n / u).choose (n / u) ^ 6) < X.card := by
+        have he : 2 ^ E * (64 * (n + n / u).choose (n / u) ^ 6) =
+            (n + n / u).choose (n / u) ^ 6 * 2 ^ (E + 6) := by
+          rw [pow_add]; ring
+        rwa [he]
+      exact lt_of_lt_of_le h3' h1
+    exact Nat.lt_of_mul_lt_mul_left h2
   have hYne : ∀ i : Fin k₀, (Y i).Nonempty := fun i ↦
     Finset.card_pos.mp (lt_of_le_of_lt (Nat.zero_le _) (hYcard2 i))
   have hYconv : CollectionConvex Y :=
@@ -3503,7 +3089,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         (Finset.coe_subset.mpr ((hAsub l).trans (hYsubX' _)))
     have hA4 : ∀ l, 4 ≤ (A l).card := by
       intro l
-      have h1 : (n + n / u).choose (n / u) ^ 6 < (A l).card ^ 2 :=
+      have h1 : 64 * (n + n / u).choose (n / u) ^ 6 < (A l).card ^ 2 :=
         lt_of_lt_of_le (hYcard2 _) (hAcard l)
       have h2 : 64 ≤ (n + n / u).choose (n / u) ^ 6 := by
         calc (64:ℕ) = 2 ^ 6 := by norm_num
@@ -3514,7 +3100,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         calc (A l).card ^ 2 ≤ 3 ^ 2 := Nat.pow_le_pow_left (by omega) 2
           _ = 9 := by norm_num
       omega
-    have hcard' : ∀ l, (a' + b' - 4).choose (a' - 2) ^ (D l).card <
+    have hcard' : ∀ l, (2 * (a' + b' - 4).choose (a' - 2)) ^ (D l).card <
         (A l).card := by
       intro l
       have hCeq : (a' + b' - 4).choose (a' - 2) =
@@ -3523,19 +3109,20 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         have e2 : a' + b' - 4 = n + n / u := by rw [ha', hb']; omega
         rw [e1, e2]
       rw [hCeq]
-      have h1 : (n + n / u).choose (n / u) ^ 6 < (A l).card ^ 2 :=
+      have h1 : 64 * (n + n / u).choose (n / u) ^ 6 < (A l).card ^ 2 :=
         lt_of_lt_of_le (hYcard2 _) (hAcard l)
-      have h2 : (n + n / u).choose (n / u) ^ 3 < (A l).card := by
+      have h2 : 8 * (n + n / u).choose (n / u) ^ 3 < (A l).card := by
         by_contra hle
         push_neg at hle
-        have h3 : (A l).card ^ 2 ≤ (n + n / u).choose (n / u) ^ 6 := by
-          calc (A l).card ^ 2 ≤ ((n + n / u).choose (n / u) ^ 3) ^ 2 :=
+        have h3 : (A l).card ^ 2 ≤ 64 * (n + n / u).choose (n / u) ^ 6 := by
+          calc (A l).card ^ 2 ≤ (8 * (n + n / u).choose (n / u) ^ 3) ^ 2 :=
                 Nat.pow_le_pow_left hle 2
-            _ = (n + n / u).choose (n / u) ^ 6 := by rw [← pow_mul]
+            _ = 64 * (n + n / u).choose (n / u) ^ 6 := by ring
         omega
-      calc (n + n / u).choose (n / u) ^ (D l).card
-          ≤ (n + n / u).choose (n / u) ^ 3 :=
-            Nat.pow_le_pow_right hCpos (hD l).2.1
+      calc (2 * (n + n / u).choose (n / u)) ^ (D l).card
+          ≤ (2 * (n + n / u).choose (n / u)) ^ 3 :=
+            Nat.pow_le_pow_right (by omega) (hD l).2.1
+        _ = 8 * (n + n / u).choose (n / u) ^ 3 := by ring
         _ < (A l).card := h2
     have key : ∀ l : Fin u,
         (∃ K' ⊆ A l, K'.card = a' ∧ CapOf K' (convexHull ℝ (Q l : Set (Euc 3)))) ∨
@@ -3553,7 +3140,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       exact close_via_convex hTinj hnocvx hsub hS''card hS''conv
     · push_neg at hbad
       choose KC hKsub hKcard hKcap using fun l ↦ (key l).resolve_right
-        (fun ⟨S, hSsub, hSc, hScv⟩ ↦ hbad l S hSsub ⟨hSc, hScv⟩)
+        (fun ⟨S, hSsub, hSc, hScv⟩ ↦ hbad l S hSsub hSc hScv)
       set KK : Finset (Euc 3) := Finset.univ.biUnion KC with hKK
       have hKdisj : ∀ i j : Fin u, i ≠ j → Disjoint (KC i) (KC j) := by
         intro i j hij
@@ -3626,11 +3213,11 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       set aa : Fin K := s ⟨2 * l.val + 1, by omega⟩ with haa
       set bb : Fin K := s ⟨2 * l.val + 2, by omega⟩ with hbb
       set cc : Fin K := s ⟨2 * u + 1, by omega⟩ with hcc
-      have hab : aa < bb := s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hbc : bb < cc := s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
+      have hab : aa < bb := s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
+      have hbc : bb < cc := s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
       have hck : cc.val + 1 < K := by
         have h1 : cc < s ⟨2 * u + 2, by omega⟩ :=
-          s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
+          s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
         have h2 := (s ⟨2 * u + 2, by omega⟩ : Fin K).isLt
         omega
       set T' : Finset (Fin K) := {aa, bb, cc} with hT'def
@@ -3642,8 +3229,8 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         have h2 : bb ∉ ({cc} : Finset (Fin K)) := by
           simp only [Finset.mem_singleton]
           exact ne_of_lt hbc
-        rw [hT'def, Finset.card_insert_of_not_mem h1,
-          Finset.card_insert_of_not_mem h2, Finset.card_singleton]
+        rw [hT'def, Finset.card_insert_of_notMem h1,
+          Finset.card_insert_of_notMem h2, Finset.card_singleton]
       have hTsub : T' ⊆ S := by
         rw [hT'def]
         exact Finset.insert_subset (hsmem _)
@@ -3652,7 +3239,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       have hχ : χ T' = 0 := hcol ▸ hmono T' hTsub hTcard
       have hΦ : Φ T' := by
         by_contra hnΦ
-        rw [hχdef] at hχ
+        simp only [hχdef] at hχ
         rw [if_neg hnΦ] at hχ
         exact absurd hχ (by decide)
       obtain ⟨a', b', c', hTeq, ha'b', hb'c', hck', g₀, g₁, g₂, c₀, c₁, c₂, A,
@@ -3670,17 +3257,17 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
             show s (midPos r) < s ⟨2 * l.val + 1, _⟩
             apply s.lt_iff_lt.mpr
             rw [hmidPos]
-            exact Fin.lt_iff_val_lt_val.mpr (by omega)
+            exact Fin.mk_lt_mk.mpr (by omega)
           · right
             constructor
             · show s ⟨2 * l.val + 2, _⟩ < s (midPos r)
               apply s.lt_iff_lt.mpr
               rw [hmidPos]
-              exact Fin.lt_iff_val_lt_val.mpr (by omega)
+              exact Fin.mk_lt_mk.mpr (by omega)
             · show s (midPos r) ≤ s ⟨2 * u + 1, _⟩
               apply s.le_iff_le.mpr
               rw [hmidPos]
-              exact Fin.le_iff_val_le_val.mpr (by omega)
+              exact Fin.mk_le_mk.mpr (by omega)
         exact hP1side _ hi y hy
       · obtain ⟨D, hDne, hDcard, hDsep⟩ :=
           separates_poly3 {z : Euc 3 | g₀ z < c₀ ∧ c₁ < g₁ z ∧ c₂ < g₂ z} rfl
@@ -3703,13 +3290,13 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       set aa : Fin K := s ⟨0, by omega⟩ with haa
       set bb : Fin K := s ⟨2 * l.val + 2, by omega⟩ with hbb
       set cc : Fin K := s ⟨2 * l.val + 3, by omega⟩ with hcc
-      have hab : aa < bb := s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
-      have hbc : bb < cc := s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
+      have hab : aa < bb := s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
+      have hbc : bb < cc := s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
       have hck : cc.val + 1 < K := by
         have h1 : cc ≤ s ⟨2 * u + 1, by omega⟩ :=
-          s.le_iff_le.mpr (Fin.le_iff_val_le_val.mpr (by omega))
+          s.le_iff_le.mpr (Fin.mk_le_mk.mpr (by omega))
         have h2 : s ⟨2 * u + 1, by omega⟩ < s ⟨2 * u + 2, by omega⟩ :=
-          s.lt_iff_lt.mpr (Fin.lt_iff_val_lt_val.mpr (by omega))
+          s.lt_iff_lt.mpr (Fin.mk_lt_mk.mpr (by omega))
         have h3 := (s ⟨2 * u + 2, by omega⟩ : Fin K).isLt
         omega
       set T' : Finset (Fin K) := {aa, bb, cc} with hT'def
@@ -3721,8 +3308,8 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
         have h2 : bb ∉ ({cc} : Finset (Fin K)) := by
           simp only [Finset.mem_singleton]
           exact ne_of_lt hbc
-        rw [hT'def, Finset.card_insert_of_not_mem h1,
-          Finset.card_insert_of_not_mem h2, Finset.card_singleton]
+        rw [hT'def, Finset.card_insert_of_notMem h1,
+          Finset.card_insert_of_notMem h2, Finset.card_singleton]
       have hTsub : T' ⊆ S := by
         rw [hT'def]
         exact Finset.insert_subset (hsmem _)
@@ -3731,7 +3318,7 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
       have hχ : χ T' = 1 := hcol ▸ hmono T' hTsub hTcard
       have hnΦ : ¬ Φ T' := by
         intro hΦ
-        rw [hχdef] at hχ
+        simp only [hχdef] at hχ
         rw [if_pos hΦ] at hχ
         exact absurd hχ (by decide)
       obtain ⟨g₀, g₁, g₂, c₀, c₁, c₂, A, hg0, hg1, hg2, hmid, hP1side, hP2side,
@@ -3759,16 +3346,16 @@ private lemma assembly_core {u K k₀ : ℕ} (hu : 1 ≤ u) (hK4 : 4 ≤ K)
             · show s ⟨0, _⟩ ≤ s (midPos r)
               apply s.le_iff_le.mpr
               rw [hmidPos]
-              exact Fin.le_iff_val_le_val.mpr (Nat.zero_le _)
+              exact Fin.mk_le_mk.mpr (Nat.zero_le _)
             · show s (midPos r) < s ⟨2 * l.val + 2, _⟩
               apply s.lt_iff_lt.mpr
               rw [hmidPos]
-              exact Fin.lt_iff_val_lt_val.mpr (by omega)
+              exact Fin.mk_lt_mk.mpr (by omega)
           · right
             show s ⟨2 * l.val + 3, _⟩ < s (midPos r)
             apply s.lt_iff_lt.mpr
             rw [hmidPos]
-            exact Fin.lt_iff_val_lt_val.mpr (by omega)
+            exact Fin.mk_lt_mk.mpr (by omega)
         obtain ⟨h1, h2, h3⟩ := hP2side _ hi y hy
         exact ⟨h1, h2, h3⟩
       · obtain ⟨D, hDne, hDcard, hDsep⟩ := separates_poly3' hg0 hg1 hg2
@@ -3806,19 +3393,18 @@ private theorem card_le_capBound_mul_exp (ε : ℝ) (hε : 0 < ε)
   set k₀ : ℕ := max 4 (Classical.choose (aboveBelow_ramsey hK4)) with hk₀def
   have hk₀3 : 3 ≤ k₀ := le_trans (by norm_num) (le_max_left _ _)
   have hk₀AB : Classical.choose (aboveBelow_ramsey hK4) ≤ k₀ := le_max_right _ _
-  set E : ℕ := 40 * k₀ + k₀ ^ 3 with hEdef
+  set E : ℕ := 40 * k₀ + k₀ ^ 3 + 6 with hEdef
   refine ⟨max (u * (u + 1)) (Nat.ceil (4 * E / ε) + 4),
     fun n hn X hX hno ↦ ?_⟩
   have hn1 : u * (u + 1) ≤ n := le_trans (le_max_left _ _) hn
   have hnE : (4:ℝ) * E ≤ ε * n := by
-    have h2 : (n:ℝ) ≥ 4 * E / ε := by
-      calc (n:ℝ) ≥ ((Nat.ceil (4 * E / ε) + 4 : ℕ) : ℝ) := by
-            exact_mod_cast le_trans (le_max_right _ _) hn
-        _ ≥ (Nat.ceil (4 * E / ε) : ℕ) := by
+    have h2 : (4:ℝ) * E / ε ≤ n := by
+      calc (4:ℝ) * E / ε ≤ ((Nat.ceil (4 * E / ε) : ℕ) : ℝ) := Nat.le_ceil _
+        _ ≤ ((Nat.ceil (4 * E / ε) + 4 : ℕ) : ℝ) := by
             exact_mod_cast Nat.le_add_right _ _
-        _ ≥ 4 * E / ε := Nat.le_ceil _
+        _ ≤ (n:ℝ) := by exact_mod_cast le_trans (le_max_right _ _) hn
     rw [div_le_iff₀ hε] at h2
-    nlinarith [h2, mul_comm (n:ℝ) ε]
+    nlinarith [h2]
   have hfin : (X.card : ℝ) ≤
       (((n + n / u).choose (n / u) : ℕ) : ℝ) ^ 6 * (2:ℝ) ^ E := by
     by_contra hneg
@@ -3927,4 +3513,4 @@ theorem convexSubset_forcing_points_exp {d : ℕ} (hd : 3 ≤ d) (ε : ℝ) (hε
           (by omega) (by omega) (ih (Nat.le_of_succ_le hkd))
   exact iter d le_rfl hd X hX hNcard
 
-end
+end Section3Wedges

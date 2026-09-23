@@ -1,7 +1,7 @@
 jsp_id: JSP-000527
 catalog_url: https://github.com/TheJustinSunPrize/awards/blob/main/problems/catalog-0501-0600.md#JSP-000527
-status: wip
-prize_ready: false
+status: complete
+prize_ready: true
 github_owner: Yi-111-a
 lean_repository: https://github.com/Yi-111-a/jsp-000527-convex-polytopes
 branch: main

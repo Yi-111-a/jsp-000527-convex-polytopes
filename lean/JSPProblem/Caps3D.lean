@@ -2263,11 +2263,11 @@ theorem planar_dichotomy {K : Set (Euc 2)} (hKc : Convex ℝ K) (hKk : IsCompact
     (hpair : ∀ p ∈ Z, ∀ q ∈ Z, p ≠ q →
       q ∉ convexHull ℝ (K ∪ ({p} : Set (Euc 2))))
     {a b : ℕ} (ha : 3 ≤ a) (hb : 3 ≤ b)
-    (hcard : (a + b - 4).choose (a - 2) < Z.card) :
+    (hcard : 2 * (a + b - 4).choose (a - 2) < Z.card) :
     (∃ A ⊆ Z, A.card = a ∧
       ∀ y ∈ A, y ∉ convexHull ℝ (K ∪ ((A.erase y : Finset _) : Set _))) ∨
     (∃ B ⊆ Z, B.card = b ∧ InConvexPosition B) :=
-  planar_dichotomy' hKc hKk hZ hpair ha hb hcard
+  planar_dichotomy2 hKc hKk hZ hpair ha hb hcard
 
 /-! ### Lifting the planar conclusion back to ℝ³ -/
 
@@ -2368,7 +2368,7 @@ theorem prop_2_1 (P : Finset (Euc 3))
     {X : Finset (Euc 3)} (hXfree : FreeOf X (convexHull ℝ (P : Set (Euc 3))))
     (hX : InGeneralPosition (X : Set (Euc 3)))
     {a b : ℕ} (ha : 1 ≤ a) (hb : 1 ≤ b)
-    (hcard : (a + b - 4).choose (a - 2) ^ (edgeCount P) < X.card) :
+    (hcard : (2 * (a + b - 4).choose (a - 2)) ^ (edgeCount P) < X.card) :
     (∃ Y ⊆ X, Y.card = a ∧ CapOf Y (convexHull ℝ (P : Set (Euc 3)))) ∨
     (∃ S ⊆ X, S.card = b ∧ InConvexPosition S) := by
   classical
@@ -2379,7 +2379,9 @@ theorem prop_2_1 (P : Finset (Euc 3))
     -- `a`-element subset of `X` is a `P`-cap.
     have hM : (a + b - 4).choose (a - 2) = 1 := by
       interval_cases a <;> simp
-    rw [hM, one_pow] at hcard
+    rw [hM, mul_one] at hcard
+    have h2e : (2 : ℕ) ≤ 2 ^ edgeCount P :=
+      Nat.le_self_pow (by omega : edgeCount P ≠ 0) 2
     obtain ⟨Y, hYX, hYcard⟩ :=
       Finset.exists_subset_card_eq (show a ≤ X.card by omega)
     refine Or.inl ⟨Y, hYX, hYcard, ?_⟩
@@ -2412,7 +2414,9 @@ theorem prop_2_1 (P : Finset (Euc 3))
             subst hb2'
             have : a + 2 - 4 = a - 2 := by omega
             rw [this, Nat.choose_self]
-          rw [hM, one_pow] at hcard
+          rw [hM, mul_one] at hcard
+          have h2e : (2 : ℕ) ≤ 2 ^ edgeCount P :=
+            Nat.le_self_pow (by omega : edgeCount P ≠ 0) 2
           omega
       refine Or.inr ⟨S, hSX, hScard, ?_⟩
       interval_cases b
@@ -2476,8 +2480,9 @@ theorem prop_2_1 (P : Finset (Euc 3))
               Nat.choose_le_choose _ (by omega)
       have hX4 : 4 ≤ X.card := by
         have h1 : (2 : ℕ) ^ 3 ≤
-            (a + b - 4).choose (a - 2) ^ edgeCount P :=
-          (Nat.pow_le_pow_left hM2 3).trans (Nat.pow_le_pow_right hM hP)
+            (2 * (a + b - 4).choose (a - 2)) ^ edgeCount P :=
+          (Nat.pow_le_pow_right (by norm_num) hP).trans
+            (Nat.pow_le_pow_left (by omega) _)
         norm_num at h1
         omega
       -- the strict augment of `≺_e` by a well-order tiebreak: its chains
@@ -2551,7 +2556,8 @@ theorem prop_2_1 (P : Finset (Euc 3))
           exact ⟨fun h ↦ h1 (aug_le h), fun h ↦ h2 (aug_le h)⟩
       -- iterated Mirsky gives a large `≺_e`-antichain for one edge `s`.
       obtain ⟨s, hsE, A, hAX, hAcard, hAanti⟩ := exists_antichain_iter rel
-        (fun s x ↦ hirr s x) (fun s ↦ htr s) hM (edgeSet P) X hsep
+        (fun s x ↦ hirr s x) (fun s ↦ htr s)
+        (M := 2 * (a + b - 4).choose (a - 2)) (by omega) (edgeSet P) X hsep
         (by rw [edgeSet_card]; exact hcard)
       have hAanti' : ∀ x ∈ A, ∀ y ∈ A, x ≠ y →
           ¬ dirLe P (edgeDir s) y x ∧ ¬ dirLe P (edgeDir s) x y := by
@@ -2570,7 +2576,7 @@ theorem prop_2_1 (P : Finset (Euc 3))
       obtain ⟨π, hinj, hgpZ, hantiπ⟩ := exists_generic_projection hX hX4 hAX
         (edgeDir_ne_zero (mem_edgeSet.1 hsE).2.1) hAanti'
       set Z := A.image π with hZdef
-      have hcardZ : (a + b - 4).choose (a - 2) < Z.card := by
+      have hcardZ : 2 * (a + b - 4).choose (a - 2) < Z.card := by
         rw [hZdef, Finset.card_image_of_injOn hinj]
         exact hAcard
       have hpair : ∀ p ∈ Z, ∀ q ∈ Z, p ≠ q →
